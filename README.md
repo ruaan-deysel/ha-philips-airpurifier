@@ -80,7 +80,7 @@ This integration includes automatic reconnection attempts, but they may not alwa
 
 1. **Add Repository**: Click the button below to add this repository to HACS:
 
-   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=domalab&repository=ha-philips-airpurifier&category=integration)
+   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ruaan-deysel&repository=ha-philips-airpurifier&category=integration)
 
 2. **Install**: Search for "Philips AirPurifier" in HACS and install it
 3. **Restart**: Restart Home Assistant
