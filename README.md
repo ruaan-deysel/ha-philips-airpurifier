@@ -133,17 +133,18 @@ If your device changes IP addresses:
 
 ### Device Support Summary
 
-| Device Category   | Model Count    | Series Supported                                                                                                                                       |
-| ----------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Air Purifiers** | 50+ models     | AC0850, AC0950, AC1214, AC1715, AC2729, AC2889, AC2936, AC3033, AC3055, AC3210, AC3259, AC3420, AC3737, AC3829, AC3854, AC3858, AC4220, AC4550, AC5659 |
-| **2-in-1 Combos** | 7 models       | AC0850C series, AMF765, AMF870                                                                                                                         |
-| **Humidifiers**   | 5 models       | CX3120, CX3550, CX5120, HU1509, HU1510, HU5710                                                                                                         |
-| **Total**         | **62+ models** | **27 series**                                                                                                                                          |
+| Device Category   | Model Count    | Series Supported                                                                                                                                                 |
+| ----------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Air Purifiers** | 50+ models     | AC0650, AC0850, AC0950, AC1214, AC1715, AC2729, AC2889, AC2936, AC3033, AC3055, AC3210, AC3259, AC3420, AC3737, AC3829, AC3854, AC3858, AC4220, AC4550, AC5659  |
+| **2-in-1 Combos** | 7 models       | AC0850C series, AMF765, AMF870                                                                                                                                   |
+| **Humidifiers**   | 5 models       | CX3120, CX3550, CX5120, HU1509, HU1510, HU5710                                                                                                                   |
+| **Total**         | **62+ models** | **28 series**                                                                                                                                          |
 
 ### Air Purifiers
 
 | Model Series | Variants                                   | Type                    |
 | ------------ | ------------------------------------------ | ----------------------- |
+| **AC0650**   | AC0650/10                                  | Compact Air Purifiers   |
 | **AC0850**   | /11, /20, /31, /41, /70, /81, /85          | Compact Air Purifiers   |
 | **AC0950**   | AC0950, AC0951                             | Compact Air Purifiers   |
 | **AC1214**   | AC1214                                     | Compact Air Purifiers   |
