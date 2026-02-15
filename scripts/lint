@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Ensure dependencies are installed
+"$(dirname "$0")/setup"
+
+# Run ruff format and check
+uv run ruff format .
+uv run ruff check . --fix

@@ -1,9 +1,9 @@
 {
   "domain": "philips_airpurifier_coap",
   "name": "Philips AirPurifier",
-  "codeowners": ["@domalab"],
+  "codeowners": ["@ruaan-deysel"],
   "config_flow": true,
-  "dependencies": ["frontend", "http"],
+  "dependencies": [],
   "dhcp": [
     {
       "macaddress": "B0F893*"
@@ -24,11 +24,10 @@
       "registered_devices": true
     }
   ],
-  "documentation": "https://github.com/domalab/ha-philips-airpurifier",
+  "documentation": "https://github.com/ruaan-deysel/ha-philips-airpurifier",
   "integration_type": "device",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/domalab/ha-philips-airpurifier/issues",
-  "quality_scale": "silver",
-  "requirements": ["aioairctrl==0.2.5", "getmac==0.9.4"],
-  "version": "0.27.0"
+  "issue_tracker": "https://github.com/ruaan-deysel/ha-philips-airpurifier/issues",
+  "requirements": ["philips-airctrl==1.0.0"],
+  "version": "2026.2.0"
 }

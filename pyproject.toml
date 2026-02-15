@@ -1,17 +1,62 @@
-[tool.black]
-line-length = 100
-target-version = ['py36', 'py37', 'py38']
+[project]
+name = "ha-philips-airpurifier"
+version = "0.28.0"
+description = "Home Assistant integration for Philips Air Purifiers via CoAP"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+dependencies = [
+    "philips-airctrl==1.0.0",
+]
 
-[tool.isort]
-# https://github.com/PyCQA/isort/wiki/isort-Settings
-profile = "black"
-# will group `import x` and `from x import` of the same module.
-force_sort_within_sections = true
-known_first_party = [
-    "homeassistant",
-    "tests",
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-homeassistant-custom-component",
 ]
-forced_separate = [
-    "tests",
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+norecursedirs = [".git", "config"]
+
+[tool.mypy]
+python_version = "3.12"
+show_error_codes = true
+strict = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "B",
+    "E",
+    "F",
+    "I",
+    "S",
+    "UP",
+    "W",
 ]
-combine_as_imports = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+known-first-party = ["homeassistant", "tests"]
+forced-separate = ["tests"]
+combine-as-imports = true
+
+[tool.coverage.run]
+source = ["custom_components/philips_airpurifier"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]

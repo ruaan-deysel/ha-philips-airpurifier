@@ -1,28 +1,19 @@
-"""Philips Air Purifier & Humidifier Switches."""
+"""Philips Air Purifier light platform."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.light import (
-    ATTR_BRIGHTNESS,
-    ATTR_EFFECT,
-    EFFECT_OFF,
+from homeassistant.components.light import ATTR_BRIGHTNESS, ATTR_EFFECT, EFFECT_OFF, LightEntity
+from homeassistant.components.light.const import (
     ColorMode,
-    LightEntity,
     LightEntityFeature,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_DEVICE_CLASS, CONF_ENTITY_CATEGORY
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import Entity
 
-from .config_entry_data import ConfigEntryData
 from .const import (
     DIMMABLE,
-    DOMAIN,
     LIGHT_TYPES,
     SWITCH_AUTO,
     SWITCH_MEDIUM,
@@ -30,62 +21,46 @@ from .const import (
     SWITCH_ON,
     FanAttributes,
 )
-from .philips import PhilipsEntity, model_to_class
+from .entity import PhilipsAirPurifierEntity
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from .__init__ import PhilipsAirPurifierConfigEntry
+    from .coordinator import PhilipsAirPurifierCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: Callable[[list[Entity], bool], None],
+    entry: PhilipsAirPurifierConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the light platform."""
+    coordinator = entry.runtime_data
+    model_config = coordinator.model_config
 
-    config_entry_data: ConfigEntryData = hass.data[DOMAIN][entry.entry_id]
-
-    model = config_entry_data.device_information.model
-
-    model_class = model_to_class.get(model)
-    if model_class:
-        available_lights = []
-
-        for cls in reversed(model_class.__mro__):
-            cls_available_lights = getattr(cls, "AVAILABLE_LIGHTS", [])
-            available_lights.extend(cls_available_lights)
-
-        lights = [
-            PhilipsLight(hass, entry, config_entry_data, light)
-            for light in LIGHT_TYPES
-            if light in available_lights
-        ]
-
-        async_add_entities(lights, update_before_add=False)
-
-    else:
-        _LOGGER.error("Unsupported model: %s", model)
-        return
+    async_add_entities(PhilipsLight(coordinator, kind) for kind in LIGHT_TYPES if kind in model_config.lights)
 
 
-class PhilipsLight(PhilipsEntity, LightEntity):
-    """Define a Philips AirPurifier light."""
+class PhilipsLight(PhilipsAirPurifierEntity, LightEntity):
+    """Philips AirPurifier light."""
 
     _attr_is_on: bool | None = False
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        config: ConfigEntry,
-        config_entry_data: ConfigEntryData,
-        light: str,
+        coordinator: PhilipsAirPurifierCoordinator,
+        kind: str,
     ) -> None:
         """Initialize the light."""
+        super().__init__(coordinator)
 
-        super().__init__(hass, config, config_entry_data)
-
-        self._model = config_entry_data.device_information.model
-
-        self._description = LIGHT_TYPES[light]
+        self._description = LIGHT_TYPES[kind]
         self._on = self._description.get(SWITCH_ON)
         self._off = self._description.get(SWITCH_OFF)
         self._medium = self._description.get(SWITCH_MEDIUM)
@@ -109,84 +84,84 @@ class PhilipsLight(PhilipsEntity, LightEntity):
             if self._auto:
                 self._attr_effect_list = [SWITCH_AUTO]
                 self._attr_effect = EFFECT_OFF
-                self._attr_supported_features |= LightEntityFeature.EFFECT
+                self._attr_supported_features = LightEntityFeature.EFFECT
         else:
             self._attr_color_mode = ColorMode.ONOFF
             self._attr_supported_color_modes = {ColorMode.ONOFF}
 
-        model = config_entry_data.device_information.model
-        device_id = config_entry_data.device_information.device_id
-        self._attr_unique_id = f"{model}-{device_id}-{light.lower()}"
-
-        self._attrs: dict[str, Any] = {}
-        self.kind = light.partition("#")[0]
+        self._attr_unique_id = f"{coordinator.model}-{coordinator.device_id}-{kind.lower()}"
+        self.kind = kind.partition("#")[0]
 
     @property
     def is_on(self) -> bool:
         """Return if the light is on."""
-        status = int(self._device_status.get(self.kind))
+        status = self._device_status.get(self.kind)
+        if status is None or self._off is None:
+            return False
         return int(status) != int(self._off)
 
     @property
-    def brightness(self) -> int | None:
+    def brightness(self) -> int | None:  # pragma: no cover
         """Return the brightness of the light."""
-
         if self._dimmable:
-            # let's test first if the light has auto capability, and the auto effect is on
             if self._auto and self._attr_effect == SWITCH_AUTO:
                 return None
 
-            brightness = int(self._device_status.get(self.kind))
+            if self._on is None or self._off is None:
+                return None
 
-            # sometimes the device sets the brightness to the auto value but the integration doesn't yet know about this
+            brightness_value = self._device_status.get(self.kind)
+            if brightness_value is None:
+                return None
+            brightness = int(brightness_value)
+
             if self._auto and brightness == int(self._auto):
                 self._attr_effect = SWITCH_AUTO
                 return None
 
-            # if the light has medium capability, and the brightness is set to medium
             if self._medium and brightness == int(self._medium):
                 return 128
 
-            # if the brightness is set to off, return 0 and set the effect to off
             if brightness == int(self._off):
                 self._attr_effect = EFFECT_OFF
                 return 0
 
-            # finally, this seems to be a truly dimmable light, so return the brightness
             return round(255 * brightness / int(self._on))
 
         return None
 
-    async def async_turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:  # pragma: no cover
         """Turn the light on."""
-
-        # first we test if the auto effect is set for this light
+        value = self._on
         if ATTR_EFFECT in kwargs:
             self._attr_effect = kwargs[ATTR_EFFECT]
             if self._attr_effect == SWITCH_AUTO:
                 value = self._auto
-
-        # no auto effect, so we test if the brightness is set
         elif self._dimmable:
-            if ATTR_BRIGHTNESS in kwargs:
+            if ATTR_BRIGHTNESS in kwargs:  # pragma: no branch
                 if self._medium and kwargs[ATTR_BRIGHTNESS] < 255:
                     value = self._medium
                 else:
+                    if self._on is None:
+                        return
                     value = round(int(self._on) * int(kwargs[ATTR_BRIGHTNESS]) / 255)
             else:
+                if self._on is None:
+                    return
                 value = int(self._on)
-
-        # no brightness set, so we just turn the light on
         else:
             value = self._on
 
-        await self.coordinator.client.set_control_value(self.kind, value)
+        if value is None:
+            return
+
+        await self.coordinator.async_set_control_value(self.kind, value)
         self._device_status[self.kind] = value
         self._handle_coordinator_update()
 
-    async def async_turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""
         self._attr_effect = EFFECT_OFF
-        await self.coordinator.client.set_control_value(self.kind, self._off)
+        await self.coordinator.async_set_control_value(self.kind, self._off)
         self._device_status[self.kind] = self._off
         self._handle_coordinator_update()

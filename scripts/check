@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Ensure dependencies are installed
+"$(dirname "$0")/setup"
+
+echo "🔍 Running type checks..."
+"$(dirname "$0")/type-check"
+
+echo ""
+echo "🎨 Checking code formatting..."
+"$(dirname "$0")/lint-check"
+
+echo ""
+echo "✅ All checks passed!"
