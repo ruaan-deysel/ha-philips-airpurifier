@@ -9,14 +9,14 @@ body:
     attributes:
       value: |
         # 🔧 Device Support Request
-        
+
         Thank you for helping us expand device support! This template is specifically for requesting support for **new or unsupported Philips air purifier/humidifier models**.
-        
+
         ## 📋 When to use this template:
         - ✅ Your Philips device model is **not listed** in our [supported devices](https://github.com/domalab/ha-philips-airpurifier#-supported-devices) section
         - ✅ You want to help us add support for a new model
         - ✅ Your device connects to your network but isn't recognized by the integration
-        
+
         ## ❌ When NOT to use this template:
         - 🚫 **Bug reports**: Your supported device isn't working properly → Use "Bug Report" template
         - 🚫 **Feature requests**: Adding new features to already-supported devices → Use "Feature Request" template
@@ -116,7 +116,7 @@ body:
       label: 📋 Device Status Data - Default Mode
       description: |
         **Required**: Raw JSON output from `aioairctrl --host $DEVICE_IP status --json` with device in default/auto mode.
-        
+
         **Instructions**:
         1. Set device to default/auto mode using the Philips app
         2. Run: `aioairctrl --host YOUR_DEVICE_IP status --json`
@@ -138,7 +138,7 @@ body:
       label: 🔄 Device Status Data - Different Modes
       description: |
         **Optional but helpful**: JSON data from different device modes/speeds.
-        
+
         **Instructions**:
         1. Change device mode using the Philips app (e.g., sleep mode, speed 1, speed 2, etc.)
         2. For each mode, run: `aioairctrl --host YOUR_DEVICE_IP status --json`
@@ -148,12 +148,12 @@ body:
         ```json
         { "mode": "sleep", ... }
         ```
-        
+
         **Speed 1:**
         ```json
         { "speed": 1, ... }
         ```
-        
+
         **Speed 2:**
         ```json
         { "speed": 2, ... }

@@ -4,7 +4,8 @@
     "abort": {
       "already_configured": "Device already configured",
       "model_unsupported": "Model unsupported",
-      "timeout": "Timeout, cannot connect to device"
+      "cannot_connect": "Cannot connect to device",
+      "different_device": "The device at this address is different from the original"
     },
     "step": {
       "user": {
@@ -15,11 +16,18 @@
       },
       "confirm": {
         "description": "Do you want to setup {model} {name}?"
+      },
+      "reconfigure": {
+        "title": "Reconfigure Philips AirPurifier",
+        "description": "Update the IP address or hostname for this device.",
+        "data": {
+          "host": "Device hostname or IP address"
+        }
       }
     },
     "error": {
-      "host": "Device address is required",
-      "connect": "Cannot connect to device"
+      "invalid_host": "Invalid hostname or IP address",
+      "cannot_connect": "Cannot connect to device"
     }
   },
   "entity": {
@@ -175,6 +183,12 @@
       "rssi": {
         "name": "RSSI"
       },
+      "runtime": {
+        "name": "Runtime"
+      },
+      "speed": {
+        "name": "Speed"
+      },
       "pre_filter": {
         "name": "Pre-filter"
       },
@@ -254,7 +268,40 @@
         "state": {
           "indoor_allergen_index": "Indoor allergen index",
           "pm25": "PM2.5",
-          "gas": "Gas"
+          "gas_level": "Gas"
+        }
+      },
+      "fan_mode": {
+        "name": "Fan mode",
+        "state": {
+          "auto": "Auto",
+          "auto_general": "Auto/General",
+          "auto_plus": "Auto+",
+          "bacteria": "Bacteria",
+          "allergen": "Allergen",
+          "gentle": "Gentle",
+          "night": "Night",
+          "sleep": "Sleep",
+          "sleep_allergy": "Sleep/Allergy",
+          "turbo": "Turbo",
+          "medium": "Medium",
+          "gas": "Gas",
+          "pollution": "Pollution",
+          "low": "Low",
+          "high": "High",
+          "ventilation": "Ventilation",
+          "natural": "Natural",
+          "speed_1": "Speed 1",
+          "gentle_speed_1": "Gentle/Speed 1",
+          "speed_2": "Speed 2",
+          "speed_3": "Speed 3",
+          "speed_4": "Speed 4",
+          "speed_5": "Speed 5",
+          "speed_6": "Speed 6",
+          "speed_7": "Speed 7",
+          "speed_8": "Speed 8",
+          "speed_9": "Speed 9",
+          "speed_10": "Speed 10"
         }
       },
       "timer": {
@@ -266,11 +313,14 @@
       }
     },
     "number": {
-      "oscillaton": {
+      "oscillation": {
         "name": "Oscillation"
       },
-      "target_temp": {
+      "target_temperature": {
         "name": "Target temperature"
+      },
+      "humidity_target": {
+        "name": "Humidity target"
       }
     }
   },
@@ -298,6 +348,20 @@
     "duplicate_entities": {
       "title": "Duplicate Entities Detected",
       "description": "Duplicate entities have been detected. This typically happens when entity unique IDs conflict. Click 'Fix' to remove duplicate entities automatically."
+    }
+  },
+  "exceptions": {
+    "no_target_entities": {
+      "message": "No target entities provided"
+    },
+    "invalid_target_entity": {
+      "message": "Invalid target entity: {entity_id}"
+    },
+    "filter_reset_failed": {
+      "message": "Filter reset failed for {entity_id}"
+    },
+    "set_child_lock_failed": {
+      "message": "Set child lock failed for {entity_id}"
     }
   },
   "services": {

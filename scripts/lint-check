@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Ensure dependencies are installed
+"$(dirname "$0")/setup"
+
+echo "🎨 Checking code formatting (read-only)..."
+uv run ruff format . --check
+uv run ruff check .

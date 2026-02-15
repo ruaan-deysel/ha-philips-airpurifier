@@ -9,15 +9,15 @@ body:
     attributes:
       value: |
         # ✨ Feature Request
-        
+
         Thank you for suggesting a new feature! This template is for requesting **new features or enhancements** for already supported devices.
-        
+
         ## 📋 When to use this template:
         - ✅ Your device model is **already supported** by the integration
         - ✅ You want to add new functionality or improve existing features
         - ✅ You have ideas for better automation or control options
         - ✅ You want to suggest UI/UX improvements
-        
+
         ## ❌ When NOT to use this template:
         - 🚫 **Device Support**: Your device model is not supported → Use "Device Support Request" template
         - 🚫 **Bug Reports**: Existing features are broken → Use "Bug Report" template
@@ -49,7 +49,7 @@ body:
       placeholder: |
         **What feature would you like:**
         Add a sensor that shows the estimated remaining filter life in days instead of just percentage.
-        
+
         **Why would this be useful:**
         It would help users plan filter replacements better and set up more meaningful automations.
     validations:
@@ -63,10 +63,10 @@ body:
       placeholder: |
         **Problem:**
         Currently I can only see filter life as a percentage, but I don't know how many days that translates to.
-        
+
         **Use Case:**
         I want to create an automation that orders new filters when there are 30 days of life remaining.
-        
+
         **Benefit:**
         This would make maintenance planning much easier for users.
       render: markdown
@@ -83,7 +83,7 @@ body:
         - Add a new sensor entity: `sensor.device_filter_days_remaining`
         - Calculate based on current usage patterns and filter life percentage
         - Update daily or when filter percentage changes
-        
+
         **UI/UX:**
         - Show in device card alongside existing filter percentage
         - Include in device diagnostics
@@ -100,7 +100,7 @@ body:
         **Current workarounds:**
         - Manual calculation based on usage patterns
         - Using template sensors in Home Assistant
-        
+
         **Why they're not ideal:**
         - Requires manual maintenance
         - Not accurate for varying usage patterns

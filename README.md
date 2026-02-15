@@ -10,22 +10,16 @@
 
 [hacs_shield]: https://img.shields.io/badge/HACS-Default-green?style=flat-square
 [hacs]: https://hacs.xyz/docs/default_repositories
-
 [releases_shield]: https://img.shields.io/github/release/domalab/ha-philips-airpurifier?style=flat-square&color=blue
 [latest_release]: https://github.com/domalab/ha-philips-airpurifier/releases/latest
-
 [ha_shield]: https://img.shields.io/badge/Home%20Assistant-2025.1%2B-blue?style=flat-square
 [ha_link]: https://www.home-assistant.io/
-
 [docs_shield]: https://deepwiki.com/badge.svg
 [docs_link]: https://deepwiki.com/domalab/ha-philips-airpurifier
-
 [license_shield]: https://img.shields.io/github/license/domalab/ha-philips-airpurifier?style=flat-square&color=orange
 [license_link]: https://github.com/domalab/ha-philips-airpurifier/blob/main/custom_components/philips_airpurifier/LICENSE.txt
-
 [community_forum_shield]: https://img.shields.io/badge/Community-Forum-blue?style=flat-square
 [community_forum]: https://community.home-assistant.io/t/philips-air-purifier/53030
-
 [issues_shield]: https://img.shields.io/github/issues/domalab/ha-philips-airpurifier?style=flat-square&color=red
 [issues_link]: https://github.com/domalab/ha-philips-airpurifier/issues
 
@@ -41,7 +35,6 @@ A comprehensive **Local Push** integration for Philips air purifiers and humidif
 - [Configuration](#️-configuration)
 - [Supported Devices](#-supported-devices)
 - [Available Entities](#-available-entities)
-- [Custom Icons](#-custom-icons)
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
 - [Credits](#-credits)
@@ -53,7 +46,7 @@ A comprehensive **Local Push** integration for Philips air purifiers and humidif
 - **Auto-Discovery**: Automatic detection of compatible devices on your network
 - **Comprehensive Entity Support**: Fan, humidifier, sensors, switches, lights, and more
 - **Real-time Monitoring**: Air quality sensors, filter status, and device diagnostics
-- **Custom Icons**: Beautiful Philips-branded icons for the Home Assistant frontend
+- **Material Design Icons**: Entity icons are defined through `icons.json` following Home Assistant patterns
 - **Multi-language Support**: Available in English, German, Dutch, Bulgarian, Romanian, and Slovak
 - **HACS Compatible**: Easy installation and updates through HACS
 
@@ -72,7 +65,6 @@ This integration includes automatic reconnection attempts, but they may not alwa
 **Background**: This integration is based on reverse engineering work by [@rgerganov](https://github.com/rgerganov). Read more about the technical details [here](https://xakcop.com/post/ctrl-air-purifier/).
 
 > **Note**: Philips has introduced a cloud-based API that works with Google Home and Alexa, but it's not publicly available for local integrations.
-
 
 ## 🚀 Installation
 
@@ -106,8 +98,9 @@ This integration includes automatic reconnection attempts, but they may not alwa
 #### Automatic Discovery (Recommended)
 
 The integration automatically discovers compatible devices on your network using:
+
 - MAC address patterns (B0F893*, 047863*, 849DC2*, 80A036*)
-- Hostname patterns (mxchip*)
+- Hostname patterns (mxchip\*)
 
 When a device is discovered, Home Assistant will show a notification. Simply follow the setup wizard.
 
@@ -140,62 +133,64 @@ If your device changes IP addresses:
 
 ### Device Support Summary
 
-| Device Category | Model Count | Series Supported |
-|-----------------|-------------|------------------|
-| **Air Purifiers** | 50+ models | AC0850, AC0950, AC1214, AC1715, AC2729, AC2889, AC2936, AC3033, AC3055, AC3210, AC3259, AC3420, AC3737, AC3829, AC3854, AC3858, AC4220, AC4550, AC5659 |
-| **2-in-1 Combos** | 7 models | AC0850C series, AMF765, AMF870 |
-| **Humidifiers** | 5 models | CX3120, CX3550, CX5120, HU1509, HU1510, HU5710 |
-| **Total** | **62+ models** | **27 series** |
+| Device Category   | Model Count    | Series Supported                                                                                                                                       |
+| ----------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Air Purifiers** | 50+ models     | AC0850, AC0950, AC1214, AC1715, AC2729, AC2889, AC2936, AC3033, AC3055, AC3210, AC3259, AC3420, AC3737, AC3829, AC3854, AC3858, AC4220, AC4550, AC5659 |
+| **2-in-1 Combos** | 7 models       | AC0850C series, AMF765, AMF870                                                                                                                         |
+| **Humidifiers**   | 5 models       | CX3120, CX3550, CX5120, HU1509, HU1510, HU5710                                                                                                         |
+| **Total**         | **62+ models** | **27 series**                                                                                                                                          |
 
 ### Air Purifiers
 
-| Model Series | Variants | Type |
-|--------------|----------|------|
-| **AC0850** | /11, /20, /31, /41, /70, /81, /85 | Compact Air Purifiers |
-| **AC0950** | AC0950, AC0951 | Compact Air Purifiers |
-| **AC1214** | AC1214 | Compact Air Purifiers |
-| **AC1715** | AC1715 | Compact Air Purifiers |
-| **AC2729** | AC2729 | Mid-range Air Purifiers |
-| **AC2889** | AC2889 | Mid-range Air Purifiers |
-| **AC2936** | AC2936, AC2939, AC2958, AC2959 | Mid-range Air Purifiers |
-| **AC3033** | AC3033, AC3036, AC3039 | Advanced Air Purifiers |
-| **AC3055** | AC3055, AC3059 | Advanced Air Purifiers |
-| **AC3210** | AC3210, AC3220, AC3221 | Advanced Air Purifiers |
-| **AC3259** | AC3259 | Advanced Air Purifiers |
-| **AC3420** | AC3420, AC3421 | Advanced Air Purifiers |
-| **AC3737** | AC3737 | Advanced Air Purifiers |
-| **AC3829** | AC3829, AC3836 | Advanced Air Purifiers |
-| **AC3854** | AC3854/50, AC3854/51 | Advanced Air Purifiers |
-| **AC3858** | AC3858/50, AC3858/51, AC3858/83, AC3858/86 | Advanced Air Purifiers |
-| **AC4220** | AC4220, AC4221, AC4236 | Premium Air Purifiers |
-| **AC4550** | AC4550, AC4558 | Premium Air Purifiers |
-| **AC5659** | AC5659, AC5660 | Premium Air Purifiers |
+| Model Series | Variants                                   | Type                    |
+| ------------ | ------------------------------------------ | ----------------------- |
+| **AC0850**   | /11, /20, /31, /41, /70, /81, /85          | Compact Air Purifiers   |
+| **AC0950**   | AC0950, AC0951                             | Compact Air Purifiers   |
+| **AC1214**   | AC1214                                     | Compact Air Purifiers   |
+| **AC1715**   | AC1715                                     | Compact Air Purifiers   |
+| **AC2729**   | AC2729                                     | Mid-range Air Purifiers |
+| **AC2889**   | AC2889                                     | Mid-range Air Purifiers |
+| **AC2936**   | AC2936, AC2939, AC2958, AC2959             | Mid-range Air Purifiers |
+| **AC3033**   | AC3033, AC3036, AC3039                     | Advanced Air Purifiers  |
+| **AC3055**   | AC3055, AC3059                             | Advanced Air Purifiers  |
+| **AC3210**   | AC3210, AC3220, AC3221                     | Advanced Air Purifiers  |
+| **AC3259**   | AC3259                                     | Advanced Air Purifiers  |
+| **AC3420**   | AC3420, AC3421                             | Advanced Air Purifiers  |
+| **AC3737**   | AC3737                                     | Advanced Air Purifiers  |
+| **AC3829**   | AC3829, AC3836                             | Advanced Air Purifiers  |
+| **AC3854**   | AC3854/50, AC3854/51                       | Advanced Air Purifiers  |
+| **AC3858**   | AC3858/50, AC3858/51, AC3858/83, AC3858/86 | Advanced Air Purifiers  |
+| **AC4220**   | AC4220, AC4221, AC4236                     | Premium Air Purifiers   |
+| **AC4550**   | AC4550, AC4558                             | Premium Air Purifiers   |
+| **AC5659**   | AC5659, AC5660                             | Premium Air Purifiers   |
 
 ### Air Purifier & Humidifier Combos (2-in-1)
 
-| Model Series | Variants | Type |
-|--------------|----------|------|
-| **AC0850 Combo** | /11, /20, /31, /41, /70 | Compact 2-in-1 Devices |
-| **AMF765** | AMF765 | Advanced 2-in-1 Air Purifier & Humidifier |
-| **AMF870** | AMF870 | Premium 2-in-1 Air Purifier & Humidifier |
+| Model Series     | Variants                | Type                                      |
+| ---------------- | ----------------------- | ----------------------------------------- |
+| **AC0850 Combo** | /11, /20, /31, /41, /70 | Compact 2-in-1 Devices                    |
+| **AMF765**       | AMF765                  | Advanced 2-in-1 Air Purifier & Humidifier |
+| **AMF870**       | AMF870                  | Premium 2-in-1 Air Purifier & Humidifier  |
 
 ### Humidifiers
 
-| Model Series | Variants | Type |
-|--------------|----------|------|
-| **CX3120** | CX3120 | Compact Humidifier |
-| **CX3550** | CX3550 | Compact Humidifier |
-| **CX5120** | CX5120 | Advanced Humidifier |
-| **HU1509** | HU1509, HU1510 | Compact Humidifier |
-| **HU5710** | HU5710 | Premium Humidifier |
+| Model Series | Variants       | Type                |
+| ------------ | -------------- | ------------------- |
+| **CX3120**   | CX3120         | Compact Humidifier  |
+| **CX3550**   | CX3550         | Compact Humidifier  |
+| **CX5120**   | CX5120         | Advanced Humidifier |
+| **HU1509**   | HU1509, HU1510 | Compact Humidifier  |
+| **HU5710**   | HU5710         | Premium Humidifier  |
 
 ### Special Variants & Notes
 
 **AC0850 Series Special Variants:**
+
 - **AWS_Philips_AIR**: Standard air purifier mode (AC0850/11, /20, /31, /41, /70)
 - **AWS_Philips_AIR_Combo**: 2-in-1 air purifier and humidifier mode (AC0850/11C, /20C, /31C, /41C, /70C)
 
 **Model Naming Convention:**
+
 - Models with `/XX` suffix indicate regional variants (e.g., AC3854/50, AC3858/51)
 - Models with `C` suffix indicate combo (2-in-1) variants where applicable
 - AMF series are dedicated 2-in-1 air purifier and humidifier devices
@@ -207,45 +202,45 @@ This integration provides comprehensive control through various Home Assistant e
 
 ### Core Entities
 
-| Entity Type | Description | Features |
-|-------------|-------------|----------|
-| **Fan** | Main device control | Power, speed control, preset modes |
-| **Humidifier** | Humidity control (2-in-1 models) | Target humidity, humidification modes |
-| **Climate** | Temperature control (applicable models) | Temperature settings, heating modes |
+| Entity Type    | Description                             | Features                              |
+| -------------- | --------------------------------------- | ------------------------------------- |
+| **Fan**        | Main device control                     | Power, speed control, preset modes    |
+| **Humidifier** | Humidity control (2-in-1 models)        | Target humidity, humidification modes |
+| **Climate**    | Temperature control (applicable models) | Temperature settings, heating modes   |
 
 ### Monitoring Entities
 
-| Entity Type | Examples | Purpose |
-|-------------|----------|---------|
-| **Sensors** | PM2.5, IAI, Temperature, Humidity | Air quality monitoring |
-| **Binary Sensors** | Filter replacement, Water refill | Maintenance alerts |
+| Entity Type        | Examples                          | Purpose                |
+| ------------------ | --------------------------------- | ---------------------- |
+| **Sensors**        | PM2.5, IAI, Temperature, Humidity | Air quality monitoring |
+| **Binary Sensors** | Filter replacement, Water refill  | Maintenance alerts     |
 
 ### Control Entities
 
-| Entity Type | Examples | Purpose |
-|-------------|----------|---------|
-| **Switches** | Child lock, Display light | Device settings |
-| **Lights** | Display brightness, Status lights | Visual controls |
-| **Select** | Timer settings, Function modes | Advanced options |
-| **Number** | Custom values (model-dependent) | Precise control |
+| Entity Type  | Examples                          | Purpose          |
+| ------------ | --------------------------------- | ---------------- |
+| **Switches** | Child lock, Display light         | Device settings  |
+| **Lights**   | Display brightness, Status lights | Visual controls  |
+| **Select**   | Timer settings, Function modes    | Advanced options |
+| **Number**   | Custom values (model-dependent)   | Precise control  |
 
 ### Entity Attributes
 
 The fan entity includes additional attributes with device information:
 
-| Attribute | Description | Example |
-|-----------|-------------|---------|
-| `name` | Device name | "bedroom" |
-| `type` | Configured model | "AC2729" |
-| `model_id` | Philips model ID | "AC2729/10" |
-| `product_id` | Philips product ID | "85bc26fae62611e8a1e3061302926720" |
-| `device_id` | Philips device ID | "3c84c6c8123311ebb1ae8e3584d00715" |
-| `software_version` | Device firmware | "0.2.1" |
-| `wifi_version` | WiFi module version | "AWS_Philips_AIR@62.1" |
-| `error_code` | Philips error code | "49408" |
-| `error` | Human-readable error | "no water" |
-| `preferred_index` | Air quality index type | "PM2.5", "IAI" |
-| `runtime` | Device uptime | "9 days, 10:44:41" |
+| Attribute          | Description            | Example                            |
+| ------------------ | ---------------------- | ---------------------------------- |
+| `name`             | Device name            | "bedroom"                          |
+| `type`             | Configured model       | "AC2729"                           |
+| `model_id`         | Philips model ID       | "AC2729/10"                        |
+| `product_id`       | Philips product ID     | "85bc26fae62611e8a1e3061302926720" |
+| `device_id`        | Philips device ID      | "3c84c6c8123311ebb1ae8e3584d00715" |
+| `software_version` | Device firmware        | "0.2.1"                            |
+| `wifi_version`     | WiFi module version    | "AWS_Philips_AIR@62.1"             |
+| `error_code`       | Philips error code     | "49408"                            |
+| `error`            | Human-readable error   | "no water"                         |
+| `preferred_index`  | Air quality index type | "PM2.5", "IAI"                     |
+| `runtime`          | Device uptime          | "9 days, 10:44:41"                 |
 
 ## 🆘 Troubleshooting
 
@@ -265,12 +260,12 @@ Logs will be available in `home-assistant.log`.
 
 ### Common Issues
 
-| Problem | Solution |
-|---------|----------|
-| Device not discovered | Check network connectivity, ensure device supports CoAP |
-| Connection drops | Power cycle device, restart Home Assistant |
-| Entities unavailable | Check device firmware version, verify local API is enabled |
-| Integration not loading | Check Home Assistant logs, verify installation |
+| Problem                 | Solution                                                   |
+| ----------------------- | ---------------------------------------------------------- |
+| Device not discovered   | Check network connectivity, ensure device supports CoAP    |
+| Connection drops        | Power cycle device, restart Home Assistant                 |
+| Entities unavailable    | Check device firmware version, verify local API is enabled |
+| Integration not loading | Check Home Assistant logs, verify installation             |
 
 ### Getting Help for Unsupported Models
 
@@ -306,57 +301,9 @@ aioairctrl --host $DEVICE_IP status --json
 deactivate  # Exit virtual environment
 ```
 
-## 🎨 Custom Icons
+## 🎨 Entity Icons
 
-This integration includes beautiful, original Philips icons for the Home Assistant frontend. Icons are accessible with the `pap:` prefix and should appear in the icon picker.
-
-> **Note**: You may need to clear your browser cache after installation to see the icons.
-
-### Available Icons
-
-| Icon | Name | Usage |
-|------|------|-------|
-| ![power_button](./custom_components/philips_airpurifier/icons/pap/power_button.svg) | `pap:power_button` | Power control |
-| ![auto_mode](./custom_components/philips_airpurifier/icons/pap/auto_mode.svg) | `pap:auto_mode` | Auto mode |
-| ![sleep_mode](./custom_components/philips_airpurifier/icons/pap/sleep_mode.svg) | `pap:sleep_mode` | Sleep mode |
-| ![child_lock_button](./custom_components/philips_airpurifier/icons/pap/child_lock_button.svg) | `pap:child_lock_button` | Child lock |
-| ![fan_speed_button](./custom_components/philips_airpurifier/icons/pap/fan_speed_button.svg) | `pap:fan_speed_button` | Fan speed |
-| ![humidity_button](./custom_components/philips_airpurifier/icons/pap/humidity_button.svg) | `pap:humidity_button` | Humidity control |
-| ![light_dimming_button](./custom_components/philips_airpurifier/icons/pap/light_dimming_button.svg) | `pap:light_dimming_button` | Light dimming |
-| ![pm25](./custom_components/philips_airpurifier/icons/pap/pm25.svg) | `pap:pm25` | PM2.5 sensor |
-| ![filter_replacement](./custom_components/philips_airpurifier/icons/pap/filter_replacement.svg) | `pap:filter_replacement` | Filter status |
-| ![water_refill](./custom_components/philips_airpurifier/icons/pap/water_refill.svg) | `pap:water_refill` | Water level |
-
-<details>
-<summary>View All Icons</summary>
-
-| Icon | Name | Icon | Name |
-|------|------|------|------|
-| ![power_button](./custom_components/philips_airpurifier/icons/pap/power_button.svg) | `pap:power_button` | ![child_lock_button](./custom_components/philips_airpurifier/icons/pap/child_lock_button.svg) | `pap:child_lock_button` |
-| ![child_lock_button_open](./custom_components/philips_airpurifier/icons/pap/child_lock_button_open.svg) | `pap:child_lock_button_open` | ![auto_mode_button](./custom_components/philips_airpurifier/icons/pap/auto_mode_button.svg) | `pap:auto_mode_button` |
-| ![fan_speed_button](./custom_components/philips_airpurifier/icons/pap/fan_speed_button.svg) | `pap:fan_speed_button` | ![humidity_button](./custom_components/philips_airpurifier/icons/pap/humidity_button.svg) | `pap:humidity_button` |
-| ![light_dimming_button](./custom_components/philips_airpurifier/icons/pap/light_dimming_button.svg) | `pap:light_dimming_button` | ![light_function](./custom_components/philips_airpurifier/icons/pap/light_function.svg) | `pap:light_function` |
-| ![ambient_light](./custom_components/philips_airpurifier/icons/pap/ambient_light.svg) | `pap:ambient_light` | ![two_in_one_mode_button](./custom_components/philips_airpurifier/icons/pap/two_in_one_mode_button.svg) | `pap:two_in_one_mode_button` |
-| ![timer_reset_button](./custom_components/philips_airpurifier/icons/pap/timer_reset_button.svg) | `pap:timer_reset_button` | ![sleep_mode](./custom_components/philips_airpurifier/icons/pap/sleep_mode.svg) | `pap:sleep_mode` |
-| ![auto_mode](./custom_components/philips_airpurifier/icons/pap/auto_mode.svg) | `pap:auto_mode` | ![speed_1](./custom_components/philips_airpurifier/icons/pap/speed_1.svg) | `pap:speed_1` |
-| ![speed_2](./custom_components/philips_airpurifier/icons/pap/speed_2.svg) | `pap:speed_2` | ![speed_3](./custom_components/philips_airpurifier/icons/pap/speed_3.svg) | `pap:speed_3` |
-| ![allergen_mode](./custom_components/philips_airpurifier/icons/pap/allergen_mode.svg) | `pap:allergen_mode` | ![purification_only_mode](./custom_components/philips_airpurifier/icons/pap/purification_only_mode.svg) | `pap:purification_only_mode` |
-| ![two_in_one_mode](./custom_components/philips_airpurifier/icons/pap/two_in_one_mode.svg) | `pap:two_in_one_mode` | ![bacteria_virus_mode](./custom_components/philips_airpurifier/icons/pap/bacteria_virus_mode.svg) | `pap:bacteria_virus_mode` |
-| ![pollution_mode](./custom_components/philips_airpurifier/icons/pap/pollution_mode.svg) | `pap:pollution_mode` | ![nanoprotect_filter](./custom_components/philips_airpurifier/icons/pap/nanoprotect_filter.svg) | `pap:nanoprotect_filter` |
-| ![filter_replacement](./custom_components/philips_airpurifier/icons/pap/filter_replacement.svg) | `pap:filter_replacement` | ![water_refill](./custom_components/philips_airpurifier/icons/pap/water_refill.svg) | `pap:water_refill` |
-| ![prefilter_cleaning](./custom_components/philips_airpurifier/icons/pap/prefilter_cleaning.svg) | `pap:prefilter_cleaning` | ![prefilter_wick_cleaning](./custom_components/philips_airpurifier/icons/pap/prefilter_wick_cleaning.svg) | `pap:prefilter_wick_cleaning` |
-| ![pm25](./custom_components/philips_airpurifier/icons/pap/pm25.svg) | `pap:pm25` | ![iai](./custom_components/philips_airpurifier/icons/pap/iai.svg) | `pap:iai` |
-| ![wifi](./custom_components/philips_airpurifier/icons/pap/wifi.svg) | `pap:wifi` | ![reset](./custom_components/philips_airpurifier/icons/pap/reset.svg) | `pap:reset` |
-| ![circulate](./custom_components/philips_airpurifier/icons/pap/circulate.svg) | `pap:circulate` | ![clean](./custom_components/philips_airpurifier/icons/pap/clean.svg) | `pap:clean` |
-| ![mode](./custom_components/philips_airpurifier/icons/pap/mode.svg) | `pap:mode` | ![pm25b](./custom_components/philips_airpurifier/icons/pap/pm25b.svg) | `pap:pm25b` |
-| ![rotate](./custom_components/philips_airpurifier/icons/pap/rotate.svg) | `pap:rotate` | ![oscillate](./custom_components/philips_airpurifier/icons/pap/oscillate.svg) | `pap:oscillate` |
-| ![heating](./custom_components/philips_airpurifier/icons/pap/heating.svg) | `pap:heating` | ![gas](./custom_components/philips_airpurifier/icons/pap/gas.svg) | `pap:gas` |
-| ![circle](./custom_components/philips_airpurifier/icons/pap/circle.svg) | `pap:circle` | ![temp_high](./custom_components/philips_airpurifier/icons/pap/temp_high.svg) | `pap:temp_high` |
-| ![temp_medium](./custom_components/philips_airpurifier/icons/pap/temp_medium.svg) | `pap:temp_medium` | ![temp_low](./custom_components/philips_airpurifier/icons/pap/temp_low.svg) | `pap:temp_low` |
-
-</details>
-
-*Credit for the icon implementation goes to [@thomasloven](https://github.com/thomasloven)*
+Entity icons are defined using Home Assistant `icons.json` with Material Design Icons (`mdi:`) values.
 
 ## 🤝 Contributing
 

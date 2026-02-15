@@ -1,0 +1,5 @@
+# Generated/runtime files (ignored by .gitignore but explicit here)
+config/
+!config/configuration.yaml
+custom_components/
+!custom_components/philips_airpurifier/

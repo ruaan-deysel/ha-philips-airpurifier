@@ -1,5 +1,35 @@
-.DS_Store
-logging.conf
-Philips-Airpurifier.code-workspace
+# artifacts
 __pycache__
-.venv
+.pytest*
+*.egg-info
+*/build/*
+*/dist/*
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+dist/
+build/
+*.egg-info/
+*.so
+*.egg
+.DS_Store
+*.swp
+*.swo
+*~
+
+# misc
+.coverage
+.vscode
+coverage.xml
+.ruff_cache
+
+
+# Home Assistant configuration
+config/*
+!config/configuration.yaml

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Check for --deep flag
+DEEP_CLEAN=false
+if [[ "$1" == "--deep" ]]; then
+    DEEP_CLEAN=true
+fi
+
+echo "🧹 Cleaning cache..."
+
+# Remove Python cache directories
+find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name .ruff_cache -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name .mypy_cache -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name ".pytype" -exec rm -rf {} + 2>/dev/null || true
+
+# Remove Python egg-info directories
+find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+
+# Remove pytest coverage reports
+rm -rf .coverage .coverage.* htmlcov/ 2>/dev/null || true
+
+if [[ "$DEEP_CLEAN" == true ]]; then
+    echo "🔥 Deep cleaning..."
+
+    # Remove uv cache
+    rm -rf .uv-cache 2>/dev/null || true
+
+    # Remove venv/virtual environment (if using one)
+    rm -rf venv/ .venv/ 2>/dev/null || true
+
+    # Remove build artifacts
+    rm -rf build/ dist/ 2>/dev/null || true
+fi
+
+echo "✅ Cache cleaned!"

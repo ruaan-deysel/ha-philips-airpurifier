@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any, TypedDict
-from xmlrpc.client import boolean
-
-from homeassistant.helpers.typing import StateType
+from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import Any
 
 DeviceStatus = dict[str, Any]
+
+# Type aliases for entity description dicts used in const.py.
+# These replace the old TypedDict definitions and will be migrated to
+# proper EntityDescription subclasses as each platform is refactored.
+SensorDescription = dict[str, Any]
+FilterDescription = dict[str, Any]
+SwitchDescription = dict[str, Any]
+LightDescription = dict[str, Any]
+SelectDescription = dict[str, Any]
+NumberDescription = dict[str, Any]
+HumidifierDescription = dict[str, Any]
+HeaterDescription = dict[str, Any]
 
 
 @dataclass
@@ -23,99 +32,64 @@ class DeviceInformation:
     mac: str | None = None
 
 
-class _SensorDescription(TypedDict):
-    """Mandatory attributes for a sensor description."""
+class ApiGeneration(StrEnum):
+    """API generation of the device."""
 
-    label: str
-
-
-class SensorDescription(_SensorDescription, total=False):
-    """Sensor description class."""
-
-    device_class: str
-    icon: str
-    unit: str
-    state_class: str
-    value: Callable[[Any, DeviceStatus], StateType]
-    icon_map: list[tuple[int, str]]
-    # warn_value: int
-    # warn_icon: str
+    GEN1 = "gen1"
+    GEN2 = "gen2"
+    GEN3 = "gen3"
 
 
-class FilterDescription(TypedDict):
-    """Filter description class."""
+@dataclass
+class DeviceModelConfig:
+    """
+    Configuration for a specific device model.
 
-    prefix: str
-    postfix: str
-    icon: str
-    icon_map: list[tuple[int, str]]
-    # warn_icon: str
-    # warn_value: int
+    This is the data-driven replacement for the per-model class hierarchy.
+    Each model's capabilities, preset modes, speeds, and available entities
+    are defined as data rather than through class inheritance.
+    """
 
+    api_generation: ApiGeneration
+    preset_modes: dict[str, dict[str, Any]] = field(default_factory=dict)
+    speeds: dict[str, dict[str, Any]] = field(default_factory=dict)
+    switches: list[str] = field(default_factory=list)
+    lights: list[str] = field(default_factory=list)
+    selects: list[str] = field(default_factory=list)
+    numbers: list[str] = field(default_factory=list)
+    humidifiers: list[str] = field(default_factory=list)
+    heaters: list[str] = field(default_factory=list)
+    binary_sensors: list[str] = field(default_factory=list)
+    unavailable_filters: list[str] = field(default_factory=list)
+    unavailable_sensors: list[str] = field(default_factory=list)
+    oscillation: dict[str, dict[str, Any]] | None = None
+    create_fan: bool = True
+    # Special behavior flags
+    requires_mode_cycling: bool = False  # AC1214 needs mode cycling
 
-class SwitchDescription(TypedDict):
-    """Switch description class."""
+    @property
+    def power_key(self) -> str:
+        """Return the power key for this API generation."""
+        if self.api_generation == ApiGeneration.GEN2:
+            return "D03-02"
+        if self.api_generation == ApiGeneration.GEN3:
+            return "D03102"
+        return "pwr"
 
-    icon: str
-    label: str
-    entity_category: str
+    @property
+    def power_on(self) -> str | int:
+        """Return the power-on value for this API generation."""
+        if self.api_generation == ApiGeneration.GEN2:
+            return "ON"
+        if self.api_generation == ApiGeneration.GEN3:
+            return 1
+        return "1"
 
-
-class LightDescription(TypedDict):
-    """Light description class."""
-
-    icon: str
-    label: str
-    entity_category: str
-    switch_on: Any
-    switch_off: Any
-    dimmable: boolean
-
-
-class SelectDescription(TypedDict):
-    """Select description class."""
-
-    label: str
-    entity_category: str
-    options: dict[Any, tuple[str, str]]
-
-
-class NumberDescription(TypedDict):
-    """Number class."""
-
-    icon: str
-    label: str
-    entity_category: str
-    unit: str
-    off: int
-    min: int
-    max: int
-    step: int
-
-
-class HumidifierDescription(TypedDict):
-    """Humidifier description class."""
-
-    label: str
-    humidity: str
-    power: str
-    on: Any
-    off: Any
-    function: str
-    humidifying: str
-    idle: str
-    switch: bool
-    max_humidity: str
-    min_humidity: str
-
-
-class HeaterDescription(TypedDict):
-    """Heater description class."""
-
-    temperature: str
-    power: str
-    on: Any
-    off: Any
-    min_temperature: int
-    max_temperature: int
-    step: int
+    @property
+    def power_off(self) -> str | int:
+        """Return the power-off value for this API generation."""
+        if self.api_generation == ApiGeneration.GEN2:
+            return "OFF"
+        if self.api_generation == ApiGeneration.GEN3:
+            return 0
+        return "0"

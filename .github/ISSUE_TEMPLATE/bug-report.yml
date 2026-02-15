@@ -9,15 +9,15 @@ body:
     attributes:
       value: |
         # 🐛 Bug Report
-        
+
         Thank you for reporting a bug! This template is for issues with **already supported devices** that are not working correctly.
-        
+
         ## 📋 When to use this template:
         - ✅ Your device model is **listed** in our [supported devices](https://github.com/domalab/ha-philips-airpurifier#-supported-devices)
         - ✅ The device was working before but now has issues
         - ✅ The device integration loads but some features don't work
         - ✅ You're getting error messages in Home Assistant logs
-        
+
         ## ❌ When NOT to use this template:
         - 🚫 **Device Support**: Your device model is not supported → Use "Device Support Request" template
         - 🚫 **Feature Requests**: Want new features for supported devices → Use "Feature Request" template
@@ -56,10 +56,10 @@ body:
       placeholder: |
         **What's happening:**
         The fan speed control doesn't work - when I change speed in HA, nothing happens on the device.
-        
+
         **What should happen:**
         The device should change fan speed when I adjust it in Home Assistant.
-        
+
         **When did this start:**
         After updating to version X.X.X
     validations:
@@ -103,7 +103,7 @@ body:
       label: 📋 Relevant Logs
       description: |
         Home Assistant logs related to the issue. Enable debug logging first:
-        
+
         ```yaml
         logger:
           logs:

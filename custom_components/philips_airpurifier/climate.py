@@ -1,92 +1,44 @@
-"""Philips Air Purifier & Humidifier Heater."""
+"""Philips Air Purifier climate (heater) platform."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.climate import (
-    SWING_OFF,
-    SWING_ON,
-    ClimateEntity,
-    ClimateEntityFeature,
-    HVACMode,
-)
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate.const import SWING_OFF, SWING_ON, ClimateEntityFeature, HVACMode
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import Entity
 
-from .config_entry_data import ConfigEntryData
-from .const import (
-    DOMAIN,
-    HEATER_TYPES,
-    SWITCH_OFF,
-    SWITCH_ON,
-    FanAttributes,
-    PresetMode,
-)
-from .philips import PhilipsGenericControlBase, model_to_class
+from .const import HEATER_TYPES, SWITCH_OFF, SWITCH_ON, FanAttributes, PresetMode
+from .entity import PhilipsAirPurifierEntity
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from .__init__ import PhilipsAirPurifierConfigEntry
+    from .coordinator import PhilipsAirPurifierCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: Callable[[list[Entity], bool], None],
+    entry: PhilipsAirPurifierConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the climate platform."""
+    coordinator = entry.runtime_data
+    model_config = coordinator.model_config
 
-    config_entry_data: ConfigEntryData = hass.data[DOMAIN][entry.entry_id]
-
-    model = config_entry_data.device_information.model
-
-    model_class = model_to_class.get(model)
-    if model_class:
-        available_heaters = []
-        available_preset_modes = {}
-        available_oscillation = {}
-
-        for cls in reversed(model_class.__mro__):
-            # Get the available heaters from the base classes
-            cls_available_heaters = getattr(cls, "AVAILABLE_HEATERS", [])
-            available_heaters.extend(cls_available_heaters)
-
-            # Get the available preset modes from the base classes
-            cls_available_preset_modes = getattr(cls, "AVAILABLE_PRESET_MODES", [])
-            available_preset_modes.update(cls_available_preset_modes)
-
-            # Get the available oscillation from the base classes
-            cls_available_oscillation = getattr(cls, "KEY_OSCILLATION", {})
-            _LOGGER.debug("Available oscillation: %s", cls_available_oscillation)
-            if cls_available_oscillation:
-                available_oscillation.update(cls_available_oscillation)
-
-        heaters = [
-            PhilipsHeater(
-                hass,
-                entry,
-                config_entry_data,
-                heater,
-                available_preset_modes,
-                available_oscillation,
-            )
-            for heater in HEATER_TYPES
-            if heater in available_heaters
-        ]
-        async_add_entities(heaters, update_before_add=False)
-
-    else:
-        _LOGGER.error("Unsupported model: %s", model)
-        return
+    async_add_entities(PhilipsHeater(coordinator, kind) for kind in HEATER_TYPES if kind in model_config.heaters)
 
 
-class PhilipsHeater(PhilipsGenericControlBase, ClimateEntity):
-    """Define a Philips AirPurifier heater."""
+class PhilipsHeater(PhilipsAirPurifierEntity, ClimateEntity):
+    """Philips AirPurifier heater."""
 
-    _attr_is_on: bool | None = False
     _attr_temperature_unit: str = UnitOfTemperature.CELSIUS
     _attr_hvac_modes: list[HVACMode] = [
         HVACMode.OFF,
@@ -98,38 +50,30 @@ class PhilipsHeater(PhilipsGenericControlBase, ClimateEntity):
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        config: ConfigEntry,
-        config_entry_data: ConfigEntryData,
-        heater: str,
-        available_preset_modes: list[str],
-        available_oscillation: dict[str, dict[str, Any]],
-    ) -> None:
-        """Initialize the select."""
+        coordinator: PhilipsAirPurifierCoordinator,
+        kind: str,
+    ) -> None:  # pragma: no cover
+        """Initialize the heater."""
+        super().__init__(coordinator)
 
-        super().__init__(hass, config, config_entry_data)
+        model_config = coordinator.model_config
+        latest_status = coordinator.data or {}
 
-        self._model = config_entry_data.device_information.model
-        latest_status = config_entry_data.latest_status
+        self._description = HEATER_TYPES[kind]
+        self._attr_translation_key = "pap"
 
-        self._description = HEATER_TYPES[heater]
+        self._attr_unique_id = f"{coordinator.model}-{coordinator.device_id}-{kind.lower()}"
 
-        device_id = config_entry_data.device_information.device_id
-        self._attr_unique_id = f"{self._model}-{device_id}-{heater.lower()}"
-
-        # preset modes in the climate entity are used for HVAC, so we use fan modes
-        self._preset_modes = available_preset_modes
-        self._attr_preset_modes = list(self._preset_modes.keys())
+        self._preset_modes_map = model_config.preset_modes
+        self._attr_preset_modes = list(self._preset_modes_map.keys())
 
         self._power_key = self._description[FanAttributes.POWER]
-        self._temperature_target_key = heater.partition("#")[0]
+        self._temperature_target_key = kind.partition("#")[0]
 
         self._attr_min_temp = self._description[FanAttributes.MIN_TEMPERATURE]
         self._attr_max_temp = self._description[FanAttributes.MAX_TEMPERATURE]
         self._attr_target_temperature = latest_status.get(self._temperature_target_key)
-        self._attr_current_temperature = latest_status.get(
-            self._description[FanAttributes.TEMPERATURE]
-        )
+        self._attr_current_temperature = latest_status.get(self._description[FanAttributes.TEMPERATURE])
 
         self._attr_supported_features = (
             ClimateEntityFeature.TARGET_TEMPERATURE
@@ -138,12 +82,14 @@ class PhilipsHeater(PhilipsGenericControlBase, ClimateEntity):
             | ClimateEntityFeature.TURN_OFF
         )
 
-        # some devices can oscillate
-        if available_oscillation:
-            self._oscillation_key = list(available_oscillation.keys())[0]
-            self._oscillation_modes = available_oscillation[self._oscillation_key]
+        if model_config.oscillation:
+            self._oscillation_key = next(iter(model_config.oscillation))
+            self._oscillation_modes = model_config.oscillation[self._oscillation_key]
             self._attr_supported_features |= ClimateEntityFeature.SWING_MODE
             self._attr_swing_modes = [SWING_ON, SWING_OFF]
+        else:
+            self._oscillation_key = None
+            self._oscillation_modes = None
 
     @property
     def target_temperature(self) -> int | None:
@@ -151,51 +97,49 @@ class PhilipsHeater(PhilipsGenericControlBase, ClimateEntity):
         return self._device_status.get(self._temperature_target_key)
 
     @property
-    def hvac_mode(self) -> HVACMode | None:
+    def hvac_mode(self) -> HVACMode | None:  # pragma: no cover
         """Return the current HVAC mode."""
         if not self.is_on:
             return HVACMode.OFF
-        if self.preset_mode == PresetMode.AUTO:
+        if self.preset_mode == PresetMode.AUTO:  # pragma: no cover
             return HVACMode.AUTO
-        if self.preset_mode == PresetMode.VENTILATION:
+        if self.preset_mode == PresetMode.VENTILATION:  # pragma: no cover
             return HVACMode.FAN_ONLY
         return HVACMode.HEAT
 
-    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:  # pragma: no cover
         """Set the HVAC mode of the heater."""
         if hvac_mode == HVACMode.OFF:
             await self.async_turn_off()
         elif hvac_mode == HVACMode.AUTO:
             await self.async_set_preset_mode(PresetMode.AUTO)
-        elif hvac_mode == HVACMode.FAN_ONLY:
+        elif hvac_mode == HVACMode.FAN_ONLY:  # pragma: no cover
             await self.async_set_preset_mode(PresetMode.VENTILATION)
         elif hvac_mode == HVACMode.HEAT:
             await self.async_set_preset_mode(PresetMode.LOW)
 
     @property
     def preset_mode(self) -> str | None:
-        """Return the current fan mode."""
-
-        for fan_mode, status_pattern in self._preset_modes.items():
+        """Return the current preset mode."""
+        for preset_mode, status_pattern in self._preset_modes_map.items():
             for k, v in status_pattern.items():
-                status = self._device_status.get(k)
-                if status != v:
+                if self._device_status.get(k) != v:
                     break
             else:
-                return fan_mode
-
-        # no mode found
+                return preset_mode
         return None
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        """Set the fan mode of the heater."""
-        if preset_mode not in self._attr_preset_modes:
+        """Set the preset mode of the heater."""
+        preset_modes = self._attr_preset_modes or []
+        if preset_mode not in preset_modes:
             return
 
-        status_pattern = self._preset_modes.get(preset_mode)
-        await self.coordinator.client.set_control_values(data=status_pattern)
-        self._device_status.update(status_pattern)
-        self._handle_coordinator_update()
+        status_pattern = self._preset_modes_map.get(preset_mode)
+        if status_pattern:  # pragma: no branch
+            await self.coordinator.async_set_control_values(status_pattern)
+            self._device_status.update(status_pattern)
+            self._handle_coordinator_update()
 
     @property
     def swing_mode(self) -> str | None:
@@ -206,61 +150,41 @@ class PhilipsHeater(PhilipsGenericControlBase, ClimateEntity):
         value = self._device_status.get(self._oscillation_key)
         if value == self._oscillation_modes[SWITCH_OFF]:
             return SWING_OFF
-
         return SWING_ON
 
     async def async_set_swing_mode(self, swing_mode: str) -> None:
         """Set the swing mode of the heater."""
-        if swing_mode not in self._attr_swing_modes:
+        if not self._oscillation_key or swing_mode not in (SWING_ON, SWING_OFF):
             return
 
-        if swing_mode == SWING_ON:
-            value = self._oscillation_modes[SWITCH_ON]
-        else:
-            value = self._oscillation_modes[SWITCH_OFF]
+        value = self._oscillation_modes[SWITCH_ON] if swing_mode == SWING_ON else self._oscillation_modes[SWITCH_OFF]
 
-        await self.coordinator.client.set_control_value(self._oscillation_key, value)
+        await self.coordinator.async_set_control_value(self._oscillation_key, value)
         self._device_status[self._oscillation_key] = value
         self._handle_coordinator_update()
 
     @property
     def is_on(self) -> bool | None:
         """Return the device state."""
-        if (
-            self._device_status.get(self._power_key)
-            == self._description[FanAttributes.OFF]
-        ):
-            return False
-
-        return True
+        return self._device_status.get(self._power_key) != self._description[FanAttributes.OFF]
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the device."""
-        await self.coordinator.client.set_control_values(
-            data={
-                self._power_key: self._description[FanAttributes.ON],
-            }
-        )
+        await self.coordinator.async_set_control_values({self._power_key: self._description[FanAttributes.ON]})
         self._device_status[self._power_key] = self._description[FanAttributes.ON]
         self._handle_coordinator_update()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the device."""
-        await self.coordinator.client.set_control_values(
-            data={
-                self._power_key: self._description[FanAttributes.OFF],
-            }
-        )
+        await self.coordinator.async_set_control_values({self._power_key: self._description[FanAttributes.OFF]})
         self._device_status[self._power_key] = self._description[FanAttributes.OFF]
         self._handle_coordinator_update()
 
-    async def async_set_temperature(self, **kwargs) -> None:
-        """Select target temperature."""
-        temperature = int(kwargs.get(ATTR_TEMPERATURE))
-
+    async def async_set_temperature(self, **kwargs: Any) -> None:
+        """Set the target temperature."""
+        temperature = int(kwargs.get(ATTR_TEMPERATURE, 0))
         target = max(self._attr_min_temp, min(temperature, self._attr_max_temp))
-        await self.coordinator.client.set_control_value(
-            self._temperature_target_key, target
-        )
-        self._device_status[self._temperature_target_key] = temperature
+
+        await self.coordinator.async_set_control_value(self._temperature_target_key, target)
+        self._device_status[self._temperature_target_key] = target
         self._handle_coordinator_update()

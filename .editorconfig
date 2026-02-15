@@ -1,0 +1,80 @@
+# top-most EditorConfig file
+root = true
+
+# Default settings - AI-friendly baseline
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Python - Home Assistant & Ruff defaults (120 chars)
+[*.py]
+indent_size = 4
+max_line_length = 120
+
+# YAML - Home Assistant configs, GitHub workflows
+[*.{yaml,yml}]
+indent_size = 2
+
+# JSON - manifest.json, translations, etc.
+[*.json]
+indent_size = 2
+
+# Markdown - READMEs, docs (preserve AI formatting)
+[*.md]
+indent_size = 2
+trim_trailing_whitespace = false
+max_line_length = off
+
+# TOML - pyproject.toml, Python packaging
+[*.toml]
+indent_size = 4
+
+# Shell scripts - setup scripts, CI/CD
+[*.{sh,bash}]
+indent_size = 2
+end_of_line = lf
+
+# JavaScript/TypeScript - Frontend panel development
+[*.{js,ts,jsx,tsx,mjs,cjs}]
+indent_size = 2
+
+# CSS/SCSS - Frontend styling
+[*.{css,scss,sass}]
+indent_size = 2
+
+# HTML - Lovelace cards, frontend templates
+[*.html]
+indent_size = 2
+
+# XML - Android Auto integration, etc.
+[*.xml]
+indent_size = 2
+
+# Jinja2 templates - Home Assistant templates
+[*.jinja,*.jinja2,*.j2]
+indent_size = 2
+
+# Makefiles require tabs
+[Makefile]
+indent_style = tab
+
+# GitHub-specific files
+[.github/workflows/*.{yml,yaml}]
+indent_size = 2
+
+[.github/dependabot.{yml,yaml}]
+indent_size = 2
+
+# Docker files
+[Dockerfile*]
+indent_size = 2
+
+[*.dockerignore]
+indent_size = 2
+
+[docker-compose*.{yml,yaml}]
+indent_size = 2

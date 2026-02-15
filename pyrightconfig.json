@@ -1,0 +1,8 @@
+{
+  "include": ["custom_components/philips_airpurifier"],
+  "typeCheckingMode": "basic",
+  "reportIncompatibleVariableOverride": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportOptionalSubscript": "none",
+  "reportTypedDictNotRequiredAccess": "none"
+}

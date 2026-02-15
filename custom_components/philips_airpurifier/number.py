@@ -1,107 +1,90 @@
-"""Philips Air Purifier & Humidifier Numbers."""
+"""Philips Air Purifier number platform."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
 
 from homeassistant.components.number import NumberEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.components.number.const import NumberMode
 from homeassistant.const import ATTR_DEVICE_CLASS, ATTR_ICON, CONF_ENTITY_CATEGORY
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import Entity
 
-from .config_entry_data import ConfigEntryData
-from .const import DOMAIN, NUMBER_TYPES, FanAttributes
-from .philips import PhilipsEntity, model_to_class
+from .const import NUMBER_TYPES, FanAttributes
+from .entity import PhilipsAirPurifierEntity
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from .__init__ import PhilipsAirPurifierConfigEntry
+    from .coordinator import PhilipsAirPurifierCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 0
+
+NUMBER_ICON_FALLBACKS: dict[str, str] = {
+    FanAttributes.OSCILLATION: "mdi:rotate-right",
+    FanAttributes.TARGET_TEMP: "mdi:thermometer",
+}
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: Callable[[list[Entity], bool], None],
+    entry: PhilipsAirPurifierConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the number platform."""
+    coordinator = entry.runtime_data
+    model_config = coordinator.model_config
 
-    config_entry_data: ConfigEntryData = hass.data[DOMAIN][entry.entry_id]
+    configured_numbers = set(model_config.numbers)
+    configured_numbers.update(kind for kind in model_config.humidifiers if kind in NUMBER_TYPES)
 
-    model = config_entry_data.device_information.model
-
-    model_class = model_to_class.get(model)
-    if model_class:
-        available_numbers = []
-
-        for cls in reversed(model_class.__mro__):
-            cls_available_numbers = getattr(cls, "AVAILABLE_NUMBERS", [])
-            available_numbers.extend(cls_available_numbers)
-
-        numbers = [
-            PhilipsNumber(hass, entry, config_entry_data, number)
-            for number in NUMBER_TYPES
-            if number in available_numbers
-        ]
-
-        async_add_entities(numbers, update_before_add=False)
-
-    else:
-        _LOGGER.error("Unsupported model: %s", model)
-        return
+    async_add_entities(PhilipsNumber(coordinator, kind) for kind in NUMBER_TYPES if kind in configured_numbers)
 
 
-class PhilipsNumber(PhilipsEntity, NumberEntity):
-    """Define a Philips AirPurifier number."""
+class PhilipsNumber(PhilipsAirPurifierEntity, NumberEntity):
+    """Philips AirPurifier number."""
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        config: ConfigEntry,
-        config_entry_data: ConfigEntryData,
-        number: str,
+        coordinator: PhilipsAirPurifierCoordinator,
+        kind: str,
     ) -> None:
         """Initialize the number."""
+        super().__init__(coordinator)
 
-        super().__init__(hass, config, config_entry_data)
-
-        self._model = config_entry_data.device_information.model
-
-        self._description = NUMBER_TYPES[number]
+        self._description = NUMBER_TYPES[kind]
         self._attr_device_class = self._description.get(ATTR_DEVICE_CLASS)
-        label = FanAttributes.LABEL
-        label = label.partition("#")[0]
         self._attr_translation_key = self._description.get(FanAttributes.LABEL)
         self._attr_entity_category = self._description.get(CONF_ENTITY_CATEGORY)
         self._attr_icon = self._description.get(ATTR_ICON)
-        self._attr_mode = "slider"  # hardwired for now
-        self._attr_native_unit_of_measurement = self._description.get(
-            FanAttributes.UNIT
-        )
+        if self._attr_icon is None:
+            label = self._description.get(FanAttributes.LABEL)
+            if isinstance(label, str):
+                self._attr_icon = NUMBER_ICON_FALLBACKS.get(label)
+        self._attr_mode = NumberMode.SLIDER
+        self._attr_native_unit_of_measurement = self._description.get(FanAttributes.UNIT)
 
-        self._attr_native_min_value = self._description.get(FanAttributes.OFF)
-        self._min = self._description.get(FanAttributes.MIN)
-        self._attr_native_max_value = self._description.get(FanAttributes.MAX)
-        self._attr_native_step = self._description.get(FanAttributes.STEP)
+        self._attr_native_min_value = float(self._description.get(FanAttributes.OFF) or 0)
+        self._min = float(self._description.get(FanAttributes.MIN) or 0)
+        self._attr_native_max_value = float(self._description.get(FanAttributes.MAX) or self._attr_native_min_value)
+        self._attr_native_step = float(self._description.get(FanAttributes.STEP) or 1)
 
-        model = config_entry_data.device_information.model
-        device_id = config_entry_data.device_information.device_id
-        self._attr_unique_id = f"{model}-{device_id}-{number.lower()}"
-
-        self._attrs: dict[str, Any] = {}
-        self.kind = number
+        self._attr_unique_id = f"{coordinator.model}-{coordinator.device_id}-{kind.lower()}"
+        self.kind = kind.partition("#")[0]
 
     @property
     def native_value(self) -> float | None:
         """Return the current number."""
-        return self._device_status.get(self.kind)
+        value = self._device_status.get(self.kind)
+        return None if value is None else float(value)
 
-    async def async_set_native_value(self, value: float) -> None:
+    async def async_set_native_value(self, value: float | None) -> None:
         """Select a number."""
-
         _LOGGER.debug("async_set_native_value called with: %s", value)
 
-        # Catch the boundaries
         if value is None or value < self._attr_native_min_value:
             value = self._attr_native_min_value
         if value % self._attr_native_step > 0:
@@ -111,6 +94,6 @@ class PhilipsNumber(PhilipsEntity, NumberEntity):
 
         _LOGGER.debug("setting number with: %s", value)
 
-        await self.coordinator.client.set_control_value(self.kind, int(value))
+        await self.coordinator.async_set_control_value(self.kind, int(value))
         self._device_status[self.kind] = int(value)
         self._handle_coordinator_update()
