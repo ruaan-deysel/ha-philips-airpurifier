@@ -94,7 +94,7 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             _LOGGER.debug("got status")
 
-            # get the status out of the queue
+            # Log the keys from the fetched status payload for debugging.
             _LOGGER.debug("status keys for host %s: %s", self._host, list(status.keys()))
 
         except TimeoutError:
