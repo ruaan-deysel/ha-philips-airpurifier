@@ -1,0 +1,38 @@
+name: Security
+
+"on":
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 6 * * 1" # yamllint disable-line rule:colons
+
+permissions: {}
+
+jobs:
+  pip-audit:
+    name: "Dependency vulnerability scan (pip-audit)"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Export requirements
+        run: uv export --no-emit-project --no-emit-workspace > /tmp/requirements.txt
+
+      - name: Run pip-audit
+        run: uv run --with pip-audit pip-audit --requirement /tmp/requirements.txt --output-format columns

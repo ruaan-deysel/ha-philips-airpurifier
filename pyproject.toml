@@ -2,7 +2,7 @@
 name = "ha-philips-airpurifier"
 version = "0.28.0"
 description = "Home Assistant integration for Philips Air Purifiers via CoAP"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = {text = "MIT"}
 dependencies = [
     "philips-airctrl==1.0.0",
@@ -22,13 +22,13 @@ asyncio_mode = "auto"
 norecursedirs = [".git", "config"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 show_error_codes = true
 strict = true
 
 [tool.ruff]
 line-length = 120
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
