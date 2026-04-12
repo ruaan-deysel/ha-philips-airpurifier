@@ -1,5 +1,6 @@
 {
   "include": ["custom_components/philips_airpurifier"],
+  "pythonVersion": "3.14",
   "typeCheckingMode": "basic",
   "reportIncompatibleVariableOverride": "none",
   "reportOptionalMemberAccess": "none",

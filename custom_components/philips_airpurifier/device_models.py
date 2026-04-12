@@ -593,7 +593,11 @@ _CONFIG_AC3210 = DeviceModelConfig(
         PhilipsApi.NEW2_BEEP,
         PhilipsApi.NEW2_AUTO_PLUS_AI,
     ],
-    selects=[PhilipsApi.NEW_PREFERRED_INDEX],
+    selects=[
+        PhilipsApi.NEW_PREFERRED_INDEX,
+        PhilipsApi.NEW2_LAMP_MODE,
+        PhilipsApi.NEW2_AMBIENT_LIGHT_MODE,
+    ],
 )
 
 # AC385x/50 config (shared by AC3854/50, AC3858/50)
