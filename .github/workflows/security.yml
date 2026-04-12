@@ -36,7 +36,7 @@ jobs:
 
       - name: Run pip-audit
         run: |
-          uv run --with pip-audit pip-audit \
+          uvx pip-audit \
             --requirement /tmp/requirements.txt \
             --output-format columns \
             --strict
