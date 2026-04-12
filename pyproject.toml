@@ -2,7 +2,7 @@
 name = "ha-philips-airpurifier"
 version = "0.28.0"
 description = "Home Assistant integration for Philips Air Purifiers via CoAP"
-requires-python = ">=3.12"
+requires-python = ">=3.14.2"
 license = {text = "MIT"}
 dependencies = [
     "philips-airctrl==1.0.0",
@@ -22,13 +22,13 @@ asyncio_mode = "auto"
 norecursedirs = [".git", "config"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 show_error_codes = true
 strict = true
 
 [tool.ruff]
 line-length = 120
-target-version = "py312"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [
@@ -59,4 +59,12 @@ fail_under = 100
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
+]
+
+[tool.uv]
+# Security overrides: force patched versions of vulnerable transitive dependencies
+# pinned by homeassistant 2026.4.2 at vulnerable versions.
+override-dependencies = [
+    "pyjwt>=2.12.0",   # CVE-2026-32597
+    "uv>=0.11.6",      # GHSA-pjjw-68hj-v9mw
 ]
