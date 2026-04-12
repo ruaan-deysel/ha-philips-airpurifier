@@ -89,7 +89,7 @@ This integration includes automatic reconnection attempts, but they may not alwa
 
 ### Prerequisites
 
-- Home Assistant 2025.1.0 or newer
+- Home Assistant 2026.4.0 or newer
 - Philips air purifier/humidifier connected to your local network
 - Device must support local CoAP communication (see [Important Notice](#️-important-notice))
 

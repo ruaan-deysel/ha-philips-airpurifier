@@ -132,13 +132,17 @@ class EntityRegistryCleanupFlow(RepairsFlow):
             entity_registry = er.async_get(self.hass)
             device_registry = dr.async_get(self.hass)
 
-            cleaned_entities = []
+            cleaned_entities: list[str] = []
+            removed_entity_ids: set[str] = set()
 
             # Find entities for this integration
             for entry in self.hass.config_entries.async_entries(DOMAIN):
                 entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
 
                 for entity in entities:
+                    if entity.entity_id in removed_entity_ids:
+                        continue
+
                     # Check if entity's device still exists
                     if entity.device_id:
                         device = device_registry.async_get(entity.device_id)
@@ -146,18 +150,24 @@ class EntityRegistryCleanupFlow(RepairsFlow):
                             # Orphaned entity - device no longer exists
                             entity_registry.async_remove(entity.entity_id)
                             cleaned_entities.append(entity.entity_id)
+                            removed_entity_ids.add(entity.entity_id)
                             continue
 
                     # Check for duplicate entities (same unique_id)
                     if entity.unique_id:
                         duplicates = [
-                            e for e in entities if e.unique_id == entity.unique_id and e.entity_id != entity.entity_id
+                            e
+                            for e in entities
+                            if e.unique_id == entity.unique_id
+                            and e.entity_id != entity.entity_id
+                            and e.entity_id not in removed_entity_ids
                         ]
                         if duplicates:
-                            # Remove duplicates, keeping the first one
+                            # Remove duplicates, keeping the current entity
                             for duplicate in duplicates:
                                 entity_registry.async_remove(duplicate.entity_id)
                                 cleaned_entities.append(duplicate.entity_id)
+                                removed_entity_ids.add(duplicate.entity_id)
 
             return self.async_create_entry(
                 title="Entity Cleanup Complete",
