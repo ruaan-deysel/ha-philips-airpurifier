@@ -52,17 +52,22 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._watchdog_task: asyncio.Task[None] | None = None
         self._last_update: float = 0.0
         self._device_available = True
+        self._shutting_down: bool = False
 
     def _mark_unavailable(self, reason: str) -> None:
         """Mark the device unavailable and log transition once."""
         if self._device_available:
             _LOGGER.warning("Device at %s became unavailable: %s", self.host, reason)
             self._device_available = False
+            self.last_update_success = False
+            self.async_update_listeners()
 
     def _mark_available(self) -> None:
         """Mark the device available and log transition once."""
         if not self._device_available:
             _LOGGER.info("Device at %s is back online", self.host)
+            self.last_update_success = True
+            self.async_update_listeners()
         self._device_available = True
 
     @property
@@ -116,7 +121,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._observe_task is not None:
             self._observe_task.cancel()
 
-        self._observe_task = self.hass.async_create_task(
+        self._observe_task = self.hass.async_create_background_task(
             self._async_observe_status(),
             f"philips_airpurifier_observe_{self.host}",
         )
@@ -124,7 +129,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._watchdog_task is not None:
             self._watchdog_task.cancel()
 
-        self._watchdog_task = self.hass.async_create_task(
+        self._watchdog_task = self.hass.async_create_background_task(
             self._async_watchdog(),
             f"philips_airpurifier_watchdog_{self.host}",
         )
@@ -139,12 +144,17 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except asyncio.CancelledError:
             raise
         except Exception:
-            self._mark_unavailable("observation stream ended")
             _LOGGER.debug(
                 "Observation stream ended for %s, triggering reconnect",
                 self.host,
             )
-            self.hass.async_create_task(self._async_reconnect())
+        finally:
+            if not self._shutting_down:
+                self._mark_unavailable("observation stream ended")
+                self.hass.async_create_background_task(
+                    self._async_reconnect(),
+                    f"philips_airpurifier_reconnect_{self.host}",
+                )
 
     async def _async_watchdog(self) -> None:
         """Watch for missed updates and trigger reconnect if needed."""
@@ -166,7 +176,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._reconnect_task is not None and not self._reconnect_task.done():
             return
 
-        self._reconnect_task = self.hass.async_create_task(
+        self._reconnect_task = self.hass.async_create_background_task(
             self._do_reconnect(),
             f"philips_airpurifier_reconnect_{self.host}",
         )
@@ -216,17 +226,21 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_shutdown(self) -> None:
         """Shut down the coordinator."""
-        if self._observe_task is not None:
-            self._observe_task.cancel()
-            self._observe_task = None
+        self._shutting_down = True
 
-        if self._watchdog_task is not None:
-            self._watchdog_task.cancel()
-            self._watchdog_task = None
+        tasks_to_cancel: list[asyncio.Task[None]] = []
+        for task in (self._observe_task, self._watchdog_task, self._reconnect_task):
+            if task is not None and not task.done():
+                task.cancel()
+                tasks_to_cancel.append(task)
 
-        if self._reconnect_task is not None:
-            self._reconnect_task.cancel()
-            self._reconnect_task = None
+        self._observe_task = None
+        self._watchdog_task = None
+        self._reconnect_task = None
+
+        for task in tasks_to_cancel:
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
         if self.client is not None:
             with contextlib.suppress(Exception):

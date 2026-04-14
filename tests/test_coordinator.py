@@ -240,7 +240,7 @@ async def test_start_observing_cancels_existing_tasks(hass: HomeAssistant) -> No
         coro.close()
         return MagicMock()
 
-    with patch.object(hass, "async_create_task", side_effect=_fake_create_task) as create_task:
+    with patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task:
         coordinator._start_observing()
 
     old_observe.cancel.assert_called_once()
@@ -256,7 +256,7 @@ async def test_start_observing_without_existing_tasks(hass: HomeAssistant) -> No
         coro.close()
         return MagicMock()
 
-    with patch.object(hass, "async_create_task", side_effect=_fake_create_task) as create_task:
+    with patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task:
         coordinator._start_observing()
 
     assert create_task.call_count == 2
@@ -271,7 +271,9 @@ async def test_async_observe_status_cancelled_raises(hass: HomeAssistant) -> Non
         yield {}
 
     client.observe_status = MagicMock(return_value=cancelled_stream())
-    coordinator = _make_coordinator(hass, client=client)
+    coordinator = _make_coordinator(hass)
+    coordinator.client = client
+    coordinator._shutting_down = True
 
     with pytest.raises(asyncio.CancelledError):
         await coordinator._async_observe_status()
@@ -295,7 +297,7 @@ async def test_async_observe_status_error_triggers_reconnect(hass: HomeAssistant
 
     with (
         patch.object(coordinator, "_async_reconnect", new=AsyncMock()) as reconnect_mock,
-        patch.object(hass, "async_create_task", side_effect=_fake_create_task) as create_task,
+        patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task,
     ):
         await coordinator._async_observe_status()
 
@@ -356,7 +358,7 @@ async def test_async_reconnect_inflight_guard(hass: HomeAssistant) -> None:
     in_flight.done.return_value = False
     coordinator._reconnect_task = in_flight
 
-    with patch.object(hass, "async_create_task", return_value=MagicMock()) as create_task:
+    with patch.object(hass, "async_create_background_task", return_value=MagicMock()) as create_task:
         await coordinator._async_reconnect()
 
     create_task.assert_not_called()
@@ -440,7 +442,14 @@ async def test_async_observe_status_success_updates_data(hass: HomeAssistant) ->
     fake_loop = MagicMock()
     fake_loop.time.return_value = 123.0
 
-    with patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop", return_value=fake_loop):
+    def _fake_create_task(coro, *_args, **_kwargs):
+        coro.close()
+        return MagicMock()
+
+    with (
+        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop", return_value=fake_loop),
+        patch.object(hass, "async_create_background_task", side_effect=_fake_create_task),
+    ):
         await coordinator._async_observe_status()
 
     assert coordinator._last_update == 123.0
@@ -455,7 +464,7 @@ async def test_async_reconnect_creates_task_when_idle(hass: HomeAssistant) -> No
         coro.close()
         return MagicMock()
 
-    with patch.object(hass, "async_create_task", side_effect=_fake_create_task) as create_task:
+    with patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task:
         await coordinator._async_reconnect()
 
     create_task.assert_called_once()
@@ -502,7 +511,7 @@ async def test_async_reconnect_done_task_creates_new_task(hass: HomeAssistant) -
         coro.close()
         return MagicMock()
 
-    with patch.object(hass, "async_create_task", side_effect=_fake_create_task) as create_task:
+    with patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task:
         await coordinator._async_reconnect()
 
     create_task.assert_called_once()
@@ -535,9 +544,13 @@ async def test_do_reconnect_success_updates_data_and_timeout(hass: HomeAssistant
 async def test_async_shutdown_cancels_all_existing_tasks(hass: HomeAssistant) -> None:
     """Test shutdown cancels observe/watchdog/reconnect tasks when present."""
     coordinator = _make_coordinator(hass)
-    observe_task = MagicMock()
-    watchdog_task = MagicMock()
-    reconnect_task = MagicMock()
+
+    async def _block_forever():
+        await asyncio.Event().wait()
+
+    observe_task = hass.async_create_task(_block_forever())
+    watchdog_task = hass.async_create_task(_block_forever())
+    reconnect_task = hass.async_create_task(_block_forever())
     coordinator._observe_task = observe_task
     coordinator._watchdog_task = watchdog_task
     coordinator._reconnect_task = reconnect_task
@@ -545,6 +558,10 @@ async def test_async_shutdown_cancels_all_existing_tasks(hass: HomeAssistant) ->
 
     await coordinator.async_shutdown()
 
-    observe_task.cancel.assert_called_once()
-    watchdog_task.cancel.assert_called_once()
-    reconnect_task.cancel.assert_called_once()
+    assert observe_task.cancelled()
+    assert watchdog_task.cancelled()
+    assert reconnect_task.cancelled()
+    assert coordinator._shutting_down is True
+    assert coordinator._observe_task is None
+    assert coordinator._watchdog_task is None
+    assert coordinator._reconnect_task is None

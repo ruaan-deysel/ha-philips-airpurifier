@@ -99,7 +99,7 @@ class PhilipsSensor(PhilipsAirPurifierEntity, SensorEntity):
             return icon
         try:
             value = int(native_value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return icon
 
         for level_value, level_icon in self._icon_map.items():
@@ -218,7 +218,7 @@ class PhilipsFilterSensor(PhilipsAirPurifierEntity, SensorEntity):
             return icon
         try:
             value = int(native_value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return icon
 
         for level_value, level_icon in self._icon_map.items():
