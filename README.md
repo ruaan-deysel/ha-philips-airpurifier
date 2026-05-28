@@ -23,12 +23,12 @@
 [issues_shield]: https://img.shields.io/github/issues/ruaan-deysel/ha-philips-airpurifier?style=flat-square&color=red
 [issues_link]: https://github.com/ruaan-deysel/ha-philips-airpurifier/issues
 
-A comprehensive **Local Push** integration for Philips air purifiers and humidifiers in Home Assistant. This integration provides complete control over your Philips air quality devices using the encrypted CoAP protocol for local communication.
+A comprehensive **Local Polling** integration for Philips air purifiers and humidifiers in Home Assistant. This integration provides complete control over your Philips air quality devices using the encrypted CoAP protocol for local communication.
 
 ## 📋 Table of Contents
 
 - [Features](#-features)
-- [Important Notice](#️-important-notice)
+- [How It Works](#how-it-works)
 - [Installation](#-installation)
   - [HACS Installation (Recommended)](#hacs-installation-recommended)
   - [Manual Installation](#manual-installation)
@@ -45,22 +45,36 @@ A comprehensive **Local Push** integration for Philips air purifiers and humidif
 - **Local Control**: Direct communication with your device without cloud dependency
 - **Auto-Discovery**: Automatic detection of compatible devices on your network
 - **Comprehensive Entity Support**: Fan, humidifier, sensors, switches, lights, and more
-- **Real-time Monitoring**: Air quality sensors, filter status, and device diagnostics
+- **Periodic Monitoring**: Air quality sensors, filter status, and device diagnostics
 - **Material Design Icons**: Entity icons are defined through `icons.json` following Home Assistant patterns
 - **Multi-language Support**: Available in English, German, Dutch, Bulgarian, Romanian, and Slovak
 - **HACS Compatible**: Easy installation and updates through HACS
 
-## ⚠️ Important Notice
+## ⚙️ How It Works
 
-**Please read this carefully before installation:**
+This integration communicates directly with Philips devices on your local network using encrypted CoAP over UDP port `5683`.
 
-Due to firmware limitations in Philips devices, this integration may experience stability issues. The connection might work initially but could become unresponsive over time. Common solutions include:
+The integration uses a bounded polling model:
 
-- Power cycling the Philips device
-- Restarting Home Assistant
-- Both actions combined
+- Every status refresh creates a fresh CoAP client.
+- The client performs the Philips sync/encryption handshake.
+- Home Assistant requests the current device status.
+- The response updates the fan, sensor, switch, light, select, number, climate, and humidifier entities.
+- The CoAP client is shut down after the request completes.
 
-This integration includes automatic reconnection attempts, but they may not always succeed. These issues are inherent to the device firmware and cannot be resolved at the integration level.
+By keeping each CoAP exchange short-lived, a failed or timed-out request is isolated to that poll. The next poll starts with a new client instead of depending on a long-running observation stream.
+
+### Polling and Recovery
+
+- Default polling interval: **60 seconds**
+- Minimum polling interval: **30 seconds**
+- Maximum polling interval: **300 seconds**
+- Successful polls use the device CoAP `max-age` value, clamped to the range above
+- Connect, status, control, and shutdown calls have explicit timeouts
+- Status reads are retried before the coordinator marks the device unavailable
+- If Home Assistant restarts while the purifier is temporarily unreachable, cached status data is used to load the known entity set while background polling continues
+
+Control actions also use short-lived CoAP clients. After a control command is sent, the integration updates the local state optimistically and schedules a follow-up status refresh.
 
 **Background**: This integration is based on reverse engineering work by [@rgerganov](https://github.com/rgerganov). Read more about the technical details [here](https://xakcop.com/post/ctrl-air-purifier/).
 
@@ -91,7 +105,7 @@ This integration includes automatic reconnection attempts, but they may not alwa
 
 - Home Assistant 2026.4.0 or newer
 - Philips air purifier/humidifier connected to your local network
-- Device must support local CoAP communication (see [Important Notice](#️-important-notice))
+- Device must support local CoAP communication (see [How It Works](#how-it-works))
 
 ### Setup Steps
 
@@ -129,7 +143,7 @@ If your device changes IP addresses:
 
 ## 📱 Supported Devices
 
-> **⚠️ Firmware Compatibility Warning**: Some newer firmware versions may disable local CoAP communication. If purchasing a device specifically for Home Assistant integration, ensure you can return it if the integration doesn't work.
+Devices must expose the local encrypted CoAP interface used by Philips air purifiers and humidifiers.
 
 ### Device Support Summary
 
@@ -264,8 +278,8 @@ Logs will be available in `home-assistant.log`.
 | Problem                 | Solution                                                   |
 | ----------------------- | ---------------------------------------------------------- |
 | Device not discovered   | Check network connectivity, ensure device supports CoAP    |
-| Connection drops        | Power cycle device, restart Home Assistant                 |
-| Entities unavailable    | Check device firmware version, verify local API is enabled |
+| Connection drops        | The next bounded poll starts with a fresh CoAP client      |
+| Entities unavailable    | Check device power, IP address, WiFi, and local CoAP access |
 | Integration not loading | Check Home Assistant logs, verify installation             |
 
 ### Getting Help for Unsupported Models
