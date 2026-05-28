@@ -363,7 +363,14 @@ async def async_check_integration_health(
 ) -> None:  # pragma: no cover
     """Check integration health and create repair issues if needed."""
     # Check connectivity
-    if not coordinator.client:
+    last_update_success = getattr(coordinator, "last_update_success", None)
+    connected = (
+        last_update_success
+        if isinstance(last_update_success, bool)
+        else getattr(coordinator, "client", None) is not None
+    )
+
+    if not connected:
         async_create_issue(
             hass,
             "connectivity_issue",

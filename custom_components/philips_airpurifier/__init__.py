@@ -9,11 +9,9 @@ from philips_airctrl import CoAPClient
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_NAME, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from .client import async_create_client
 from .const import (
     CONF_DEVICE_ID,
     CONF_MODEL,
@@ -64,14 +62,6 @@ async def async_setup_entry(
 
     _LOGGER.debug("async_setup_entry called for host %s", host)
 
-    try:
-        client = await async_create_client(host, timeout=25, create_client=CoAPClient.create)
-        _LOGGER.debug("Got a valid client for host %s", host)
-    except Exception as err:
-        _LOGGER.warning("Failed to connect to host %s: %s", host, err)
-        msg = f"Failed to connect to device at {host}"
-        raise ConfigEntryNotReady(msg) from err
-
     device_information = DeviceInformation(
         host=host,
         mac=None,
@@ -80,9 +70,15 @@ async def async_setup_entry(
         device_id=device_id,
     )
 
-    coordinator = PhilipsAirPurifierCoordinator(hass, client, host, device_information)
+    coordinator = PhilipsAirPurifierCoordinator(
+        hass,
+        host,
+        device_information,
+        initial_status=entry.data.get(CONF_STATUS),
+        create_client=CoAPClient.create,
+    )
 
-    # Perform initial data refresh, then start CoAP observation
+    # Perform initial data refresh, then let the coordinator poll at the device max-age.
     await coordinator.async_first_refresh_and_observe()
 
     hass.async_create_task(async_check_integration_health(hass, coordinator))

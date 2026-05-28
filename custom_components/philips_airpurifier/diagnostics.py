@@ -84,7 +84,10 @@ async def async_get_config_entry_diagnostics(
             "state": entry.state.value,
         },
         "coordinator": {
-            "client_available": coordinator.client is not None,
+            "client_available": coordinator.last_update_success,
+            "poll_interval_seconds": (
+                int(coordinator.update_interval.total_seconds()) if coordinator.update_interval else None
+            ),
             "has_data": status is not None and len(status) > 0,
             "status_keys": list(status.keys()) if status else [],
         },

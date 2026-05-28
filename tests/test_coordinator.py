@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-import asyncio
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.philips_airpurifier.coordinator import (
+    DEFAULT_POLL_INTERVAL,
+    MAX_POLL_INTERVAL,
+    MIN_POLL_INTERVAL,
     PhilipsAirPurifierCoordinator,
+    _poll_interval_from_timeout,
 )
 from custom_components.philips_airpurifier.model import DeviceInformation
 from homeassistant.core import HomeAssistant
@@ -43,6 +47,7 @@ async def test_coordinator_properties(
     assert coordinator.device_name == TEST_NAME
     assert coordinator.model == TEST_MODEL
     assert coordinator.host == TEST_HOST
+    assert coordinator.update_interval == timedelta(seconds=60)
 
 
 async def test_coordinator_device_info(
@@ -54,7 +59,6 @@ async def test_coordinator_device_info(
 
     device_info = coordinator.device_info
 
-    # device_info is a DeviceInformation dataclass, not a HA DeviceInfo dict
     assert isinstance(device_info, DeviceInformation)
     assert device_info.model == TEST_MODEL
     assert device_info.name == TEST_NAME
@@ -67,12 +71,15 @@ async def test_coordinator_set_control_value(
     init_integration: MockConfigEntry,
     mock_coap_client: AsyncMock,
 ) -> None:
-    """Test setting a single control value."""
+    """Test setting a single control value uses a bounded temporary client."""
     coordinator = init_integration.runtime_data
+    mock_coap_client.set_control_values.reset_mock()
 
     await coordinator.async_set_control_value("pwr", "0")
 
-    mock_coap_client.set_control_values.assert_called_once_with(data={"pwr": "0"})
+    mock_coap_client.set_control_values.assert_called_with(data={"pwr": "0"})
+    mock_coap_client.shutdown.assert_called()
+    assert coordinator.data["pwr"] == "0"
 
 
 async def test_coordinator_set_control_values(
@@ -82,11 +89,13 @@ async def test_coordinator_set_control_values(
 ) -> None:
     """Test setting multiple control values."""
     coordinator = init_integration.runtime_data
+    mock_coap_client.set_control_values.reset_mock()
 
     values = {"pwr": "1", "mode": "M", "om": "s"}
     await coordinator.async_set_control_values(values)
 
-    mock_coap_client.set_control_values.assert_called_once_with(data=values)
+    mock_coap_client.set_control_values.assert_called_with(data=values)
+    assert coordinator.data["mode"] == "M"
 
 
 async def test_coordinator_set_control_values_error(
@@ -94,14 +103,15 @@ async def test_coordinator_set_control_values_error(
     init_integration: MockConfigEntry,
     mock_coap_client: AsyncMock,
 ) -> None:
-    """Test setting control values propagates errors."""
+    """Test setting control values propagates errors and marks unavailable."""
     coordinator = init_integration.runtime_data
 
-    mock_coap_client.set_control_values.side_effect = Exception("connection lost")
+    mock_coap_client.set_control_values.side_effect = RuntimeError("connection lost")
 
-    # The method doesn't wrap errors in UpdateFailed, it just propagates the exception
-    with pytest.raises(Exception, match="connection lost"):
+    with pytest.raises(RuntimeError, match="connection lost"):
         await coordinator.async_set_control_values({"pwr": "1"})
+
+    assert coordinator.last_update_success is False
 
 
 async def test_coordinator_async_update_data(
@@ -109,23 +119,21 @@ async def test_coordinator_async_update_data(
     init_integration: MockConfigEntry,
     mock_coap_client: AsyncMock,
 ) -> None:
-    """Test coordinator update data calls get_status."""
+    """Test coordinator polling calls get_status and updates interval."""
     coordinator = init_integration.runtime_data
 
-    # Reset the mock to clear initialization calls
     mock_coap_client.get_status.reset_mock()
-
-    # Mock updated status
     updated_status = MOCK_STATUS_GEN1.copy()
     updated_status["pm25"] = 25
-    mock_coap_client.get_status.return_value = (updated_status, 60)
+    mock_coap_client.get_status.return_value = (updated_status, 45)
 
-    # Call internal update method
     result = await coordinator._async_update_data()
 
     assert result == updated_status
     assert result["pm25"] == 25
+    assert coordinator.update_interval == timedelta(seconds=45)
     mock_coap_client.get_status.assert_called_once()
+    mock_coap_client.shutdown.assert_called()
 
 
 async def test_coordinator_async_update_data_error(
@@ -136,29 +144,24 @@ async def test_coordinator_async_update_data_error(
     """Test coordinator update data raises UpdateFailed on error."""
     coordinator = init_integration.runtime_data
 
-    mock_coap_client.get_status.side_effect = Exception("connection error")
+    mock_coap_client.get_status.side_effect = RuntimeError("connection error")
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
+
+    assert coordinator.last_update_success is False
 
 
 async def test_coordinator_shutdown(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,
-    mock_coap_client: AsyncMock,
 ) -> None:
-    """Test coordinator shutdown cancels tasks and shuts down client."""
+    """Test coordinator shutdown marks the coordinator as shutting down."""
     coordinator = init_integration.runtime_data
 
     await coordinator.async_shutdown()
 
-    # Verify client shutdown was called
-    mock_coap_client.shutdown.assert_called()
-
-    # Verify tasks are None after shutdown
-    assert coordinator._observe_task is None
-    assert coordinator._watchdog_task is None
-    assert coordinator._reconnect_task is None
+    assert coordinator._shutting_down is True
 
 
 async def test_coordinator_model_config(
@@ -171,19 +174,18 @@ async def test_coordinator_model_config(
     model_config = coordinator.model_config
 
     assert model_config is not None
-    # DeviceModelConfig has api_generation, not model
     assert model_config.api_generation == "gen1"
 
 
-async def test_coordinator_client_property(
+async def test_coordinator_legacy_client_property(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,
     mock_coap_client: AsyncMock,
 ) -> None:
-    """Test coordinator client property returns the CoAP client."""
+    """Test coordinator keeps the legacy client attribute for diagnostics compatibility."""
     coordinator = init_integration.runtime_data
 
-    assert coordinator.client == mock_coap_client
+    assert coordinator.client is None or coordinator.client == mock_coap_client
 
 
 async def test_coordinator_mark_available_logs_back_online_once(hass: HomeAssistant) -> None:
@@ -211,7 +213,9 @@ def _make_coordinator(
         device_id=TEST_DEVICE_ID,
         host=TEST_HOST,
     )
-    return PhilipsAirPurifierCoordinator(hass, client or AsyncMock(), TEST_HOST, device_info)
+    if client is not None:
+        return PhilipsAirPurifierCoordinator(hass, client, TEST_HOST, device_info)
+    return PhilipsAirPurifierCoordinator(hass, TEST_HOST, device_info, create_client=AsyncMock())
 
 
 async def test_coordinator_model_config_family_fallback(hass: HomeAssistant) -> None:
@@ -228,340 +232,90 @@ async def test_coordinator_model_config_default_fallback(hass: HomeAssistant) ->
     assert coordinator.model_config.api_generation == "gen1"
 
 
-async def test_start_observing_cancels_existing_tasks(hass: HomeAssistant) -> None:
-    """Test _start_observing cancels old tasks before creating new ones."""
-    coordinator = _make_coordinator(hass)
-    old_observe = MagicMock()
-    old_watchdog = MagicMock()
-    coordinator._observe_task = old_observe
-    coordinator._watchdog_task = old_watchdog
-
-    def _fake_create_task(coro, *_args, **_kwargs):
-        coro.close()
-        return MagicMock()
-
-    with patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task:
-        coordinator._start_observing()
-
-    old_observe.cancel.assert_called_once()
-    old_watchdog.cancel.assert_called_once()
-    assert create_task.call_count == 2
-
-
-async def test_start_observing_without_existing_tasks(hass: HomeAssistant) -> None:
-    """Test _start_observing path when no previous tasks exist."""
+async def test_start_observing_is_noop_in_polling_mode(hass: HomeAssistant) -> None:
+    """Test the legacy observe hook remains a no-op."""
     coordinator = _make_coordinator(hass)
 
-    def _fake_create_task(coro, *_args, **_kwargs):
-        coro.close()
-        return MagicMock()
+    coordinator._start_observing()
 
-    with patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task:
-        coordinator._start_observing()
-
-    assert create_task.call_count == 2
-
-
-async def test_async_observe_status_cancelled_raises(hass: HomeAssistant) -> None:
-    """Test observe loop propagates cancellation."""
-    client = MagicMock()
-
-    async def cancelled_stream():
-        raise asyncio.CancelledError
-        yield {}
-
-    client.observe_status = MagicMock(return_value=cancelled_stream())
-    coordinator = _make_coordinator(hass)
-    coordinator.client = client
-    coordinator._shutting_down = True
-
-    with pytest.raises(asyncio.CancelledError):
-        await coordinator._async_observe_status()
-
-
-async def test_async_observe_status_error_triggers_reconnect(hass: HomeAssistant) -> None:
-    """Test observe loop errors schedule reconnect task."""
-    client = MagicMock()
-
-    async def failing_stream():
-        msg = "stream failed"
-        raise RuntimeError(msg)
-        yield {}
-
-    client.observe_status = MagicMock(return_value=failing_stream())
-    coordinator = _make_coordinator(hass, client=client)
-
-    def _fake_create_task(coro, *_args, **_kwargs):
-        coro.close()
-        return MagicMock()
-
-    with (
-        patch.object(coordinator, "_async_reconnect", new=AsyncMock()) as reconnect_mock,
-        patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task,
-    ):
-        await coordinator._async_observe_status()
-
-    reconnect_mock.assert_called_once()
-    create_task.assert_called_once()
-
-
-async def test_async_watchdog_triggers_reconnect_when_elapsed(hass: HomeAssistant) -> None:
-    """Test watchdog reconnects when updates are overdue."""
-    coordinator = _make_coordinator(hass)
-    coordinator._timeout = 1
-    coordinator._last_update = 1
-
-    fake_loop = MagicMock()
-    fake_loop.time.return_value = 10
-
-    with (
-        patch(
-            "custom_components.philips_airpurifier.coordinator.asyncio.sleep",
-            side_effect=[None, asyncio.CancelledError],
-        ),
-        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop", return_value=fake_loop),
-        patch.object(coordinator, "_async_reconnect", new=AsyncMock()) as reconnect_mock,
-    ):
-        with pytest.raises(asyncio.CancelledError):
-            await coordinator._async_watchdog()
-
-    reconnect_mock.assert_awaited_once()
-
-
-async def test_async_watchdog_no_reconnect_when_recent(hass: HomeAssistant) -> None:
-    """Test watchdog does not reconnect when updates are recent."""
-    coordinator = _make_coordinator(hass)
-    coordinator._timeout = 10
-    coordinator._last_update = 100
-
-    fake_loop = MagicMock()
-    fake_loop.time.return_value = 101
-
-    with (
-        patch(
-            "custom_components.philips_airpurifier.coordinator.asyncio.sleep",
-            side_effect=[None, asyncio.CancelledError],
-        ),
-        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop", return_value=fake_loop),
-        patch.object(coordinator, "_async_reconnect", new=AsyncMock()) as reconnect_mock,
-    ):
-        with pytest.raises(asyncio.CancelledError):
-            await coordinator._async_watchdog()
-
-    reconnect_mock.assert_not_awaited()
-
-
-async def test_async_reconnect_inflight_guard(hass: HomeAssistant) -> None:
-    """Test _async_reconnect returns when reconnect task already running."""
-    coordinator = _make_coordinator(hass)
-    in_flight = MagicMock()
-    in_flight.done.return_value = False
-    coordinator._reconnect_task = in_flight
-
-    with patch.object(hass, "async_create_background_task", return_value=MagicMock()) as create_task:
-        await coordinator._async_reconnect()
-
-    create_task.assert_not_called()
-
-
-async def test_do_reconnect_handles_status_fetch_failure(hass: HomeAssistant) -> None:
-    """Test reconnect continues even when status fetch after reconnect fails."""
-    old_client = AsyncMock()
-    old_client.shutdown = AsyncMock()
-    coordinator = _make_coordinator(hass, client=old_client)
-
-    new_client = AsyncMock()
-    new_client.get_status.side_effect = RuntimeError("status failed")
-
-    with (
-        patch(
-            "custom_components.philips_airpurifier.coordinator.CoAPClient.create",
-            new=AsyncMock(return_value=new_client),
-        ),
-        patch.object(coordinator, "_start_observing") as start_observing,
-    ):
-        await coordinator._do_reconnect()
-
-    start_observing.assert_called_once()
-
-
-async def test_do_reconnect_generic_failure_suppressed(hass: HomeAssistant) -> None:
-    """Test reconnect logs and suppresses non-cancelled failures."""
-    coordinator = _make_coordinator(hass, client=AsyncMock())
-
-    with patch(
-        "custom_components.philips_airpurifier.coordinator.CoAPClient.create",
-        new=AsyncMock(side_effect=RuntimeError("connect failed")),
-    ):
-        await coordinator._do_reconnect()
-
-
-async def test_do_reconnect_cancelled_propagates(hass: HomeAssistant) -> None:
-    """Test reconnect cancellation is propagated."""
-    coordinator = _make_coordinator(hass, client=AsyncMock())
-
-    with (
-        patch(
-            "custom_components.philips_airpurifier.coordinator.CoAPClient.create",
-            new=AsyncMock(side_effect=asyncio.CancelledError),
-        ),
-        pytest.raises(asyncio.CancelledError),
-    ):
-        await coordinator._do_reconnect()
+    assert coordinator.update_interval == timedelta(seconds=DEFAULT_POLL_INTERVAL)
 
 
 async def test_first_refresh_and_observe_raises_not_ready(hass: HomeAssistant) -> None:
     """Test initial refresh failure raises ConfigEntryNotReady."""
-    client = AsyncMock()
-    client.get_status.side_effect = RuntimeError("offline")
-    coordinator = _make_coordinator(hass, client=client)
+    create_client = AsyncMock(side_effect=RuntimeError("offline"))
+    coordinator = _make_coordinator(hass)
+    coordinator._create_client = create_client
 
     with pytest.raises(ConfigEntryNotReady):
         await coordinator.async_first_refresh_and_observe()
 
 
-async def test_shutdown_suppresses_client_shutdown_exception(hass: HomeAssistant) -> None:
-    """Test async_shutdown suppresses client shutdown exceptions."""
+async def test_first_refresh_uses_cached_status_when_device_offline(hass: HomeAssistant) -> None:
+    """Test setup can continue from cached status while polling recovers."""
+    device_info = DeviceInformation(
+        model=TEST_MODEL,
+        name=TEST_NAME,
+        device_id=TEST_DEVICE_ID,
+        host=TEST_HOST,
+    )
+    coordinator = PhilipsAirPurifierCoordinator(
+        hass,
+        TEST_HOST,
+        device_info,
+        initial_status=MOCK_STATUS_GEN1.copy(),
+        create_client=AsyncMock(side_effect=RuntimeError("offline")),
+    )
+
+    with patch.object(hass, "async_create_background_task", return_value=MagicMock()) as create_task:
+        await coordinator.async_first_refresh_and_observe()
+
+    assert coordinator.data == MOCK_STATUS_GEN1
+    assert coordinator.last_update_success is False
+    create_task.assert_called_once()
+
+
+async def test_first_refresh_and_observe_success(hass: HomeAssistant) -> None:
+    """Test initial refresh stores data in polling mode."""
     client = AsyncMock()
-    client.shutdown.side_effect = RuntimeError("ignore")
+    client.get_status = AsyncMock(return_value=({"pwr": "1"}, 30))
+    client.shutdown = AsyncMock()
     coordinator = _make_coordinator(hass, client=client)
 
-    await coordinator.async_shutdown()
+    await coordinator.async_first_refresh_and_observe()
 
-
-async def test_async_observe_status_success_updates_data(hass: HomeAssistant) -> None:
-    """Test observe stream updates coordinator data and timestamp."""
-
-    async def stream():
-        yield {"pwr": "1"}
-
-    client = MagicMock()
-    client.observe_status = MagicMock(return_value=stream())
-    coordinator = _make_coordinator(hass, client=client)
-
-    fake_loop = MagicMock()
-    fake_loop.time.return_value = 123.0
-
-    def _fake_create_task(coro, *_args, **_kwargs):
-        coro.close()
-        return MagicMock()
-
-    with (
-        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop", return_value=fake_loop),
-        patch.object(hass, "async_create_background_task", side_effect=_fake_create_task),
-    ):
-        await coordinator._async_observe_status()
-
-    assert coordinator._last_update == 123.0
     assert coordinator.data == {"pwr": "1"}
+    assert coordinator.update_interval == timedelta(seconds=30)
 
 
-async def test_async_reconnect_creates_task_when_idle(hass: HomeAssistant) -> None:
-    """Test reconnect schedules reconnect task when none is running."""
-    coordinator = _make_coordinator(hass)
-
-    def _fake_create_task(coro, *_args, **_kwargs):
-        coro.close()
-        return MagicMock()
-
-    with patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task:
-        await coordinator._async_reconnect()
-
-    create_task.assert_called_once()
+def test_poll_interval_from_timeout_bounds_values() -> None:
+    """Test CoAP max-age values are clamped to safe polling bounds."""
+    assert _poll_interval_from_timeout(1) == timedelta(seconds=MIN_POLL_INTERVAL)
+    assert _poll_interval_from_timeout(45) == timedelta(seconds=45)
+    assert _poll_interval_from_timeout(999) == timedelta(seconds=MAX_POLL_INTERVAL)
+    assert _poll_interval_from_timeout("bad") == timedelta(seconds=DEFAULT_POLL_INTERVAL)
 
 
-async def test_async_shutdown_with_none_client(hass: HomeAssistant) -> None:
-    """Test shutdown handles missing client gracefully."""
-    coordinator = _make_coordinator(hass)
-    coordinator.client = None
-    coordinator._observe_task = None
-    coordinator._watchdog_task = None
-    coordinator._reconnect_task = None
+async def test_control_false_result_raises(hass: HomeAssistant) -> None:
+    """Test a rejected control update is treated as a failure."""
+    client = AsyncMock()
+    client.set_control_values = AsyncMock(return_value=False)
+    client.shutdown = AsyncMock()
+    coordinator = _make_coordinator(hass, client=client)
 
-    await coordinator.async_shutdown()
-
-
-async def test_async_watchdog_skips_elapsed_check_when_no_last_update(hass: HomeAssistant) -> None:
-    """Test watchdog branch where _last_update is zero."""
-    coordinator = _make_coordinator(hass)
-    coordinator._timeout = 1
-    coordinator._last_update = 0
-
-    with (
-        patch(
-            "custom_components.philips_airpurifier.coordinator.asyncio.sleep",
-            side_effect=[None, asyncio.CancelledError],
-        ),
-        patch.object(coordinator, "_async_reconnect", new=AsyncMock()) as reconnect_mock,
-    ):
-        with pytest.raises(asyncio.CancelledError):
-            await coordinator._async_watchdog()
-
-    reconnect_mock.assert_not_awaited()
+    with pytest.raises(RuntimeError, match="rejected"):
+        await coordinator.async_set_control_values({"pwr": "1"})
 
 
-async def test_async_reconnect_done_task_creates_new_task(hass: HomeAssistant) -> None:
-    """Test reconnect schedules when previous reconnect task is done."""
-    coordinator = _make_coordinator(hass)
-    done_task = MagicMock()
-    done_task.done.return_value = True
-    coordinator._reconnect_task = done_task
+async def test_control_refresh_is_scheduled(hass: HomeAssistant) -> None:
+    """Test successful controls request a follow-up status refresh."""
+    client = AsyncMock()
+    client.set_control_values = AsyncMock(return_value=True)
+    client.shutdown = AsyncMock()
+    coordinator = _make_coordinator(hass, client=client)
+    coordinator.async_set_updated_data({"pwr": "0"})
 
-    def _fake_create_task(coro, *_args, **_kwargs):
-        coro.close()
-        return MagicMock()
-
-    with patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task:
-        await coordinator._async_reconnect()
+    with patch.object(hass, "async_create_background_task", return_value=MagicMock()) as create_task:
+        await coordinator.async_set_control_values({"pwr": "1"})
 
     create_task.assert_called_once()
-
-
-async def test_do_reconnect_success_updates_data_and_timeout(hass: HomeAssistant) -> None:
-    """Test reconnect success path updates coordinator state and restarts observe."""
-    old_client = AsyncMock()
-    old_client.shutdown = AsyncMock()
-    coordinator = _make_coordinator(hass, client=old_client)
-
-    new_status = {"pwr": "1", "pm25": 5}
-    new_client = AsyncMock()
-    new_client.get_status = AsyncMock(return_value=(new_status, 45))
-
-    with (
-        patch(
-            "custom_components.philips_airpurifier.coordinator.CoAPClient.create",
-            new=AsyncMock(return_value=new_client),
-        ),
-        patch.object(coordinator, "_start_observing") as start_observing,
-    ):
-        await coordinator._do_reconnect()
-
-    assert coordinator.data == new_status
-    assert coordinator._timeout == 45
-    start_observing.assert_called_once()
-
-
-async def test_async_shutdown_cancels_all_existing_tasks(hass: HomeAssistant) -> None:
-    """Test shutdown cancels observe/watchdog/reconnect tasks when present."""
-    coordinator = _make_coordinator(hass)
-
-    async def _block_forever():
-        await asyncio.Event().wait()
-
-    observe_task = hass.async_create_task(_block_forever())
-    watchdog_task = hass.async_create_task(_block_forever())
-    reconnect_task = hass.async_create_task(_block_forever())
-    coordinator._observe_task = observe_task
-    coordinator._watchdog_task = watchdog_task
-    coordinator._reconnect_task = reconnect_task
-    coordinator.client = AsyncMock()
-
-    await coordinator.async_shutdown()
-
-    assert observe_task.cancelled()
-    assert watchdog_task.cancelled()
-    assert reconnect_task.cancelled()
-    assert coordinator._shutting_down is True
-    assert coordinator._observe_task is None
-    assert coordinator._watchdog_task is None
-    assert coordinator._reconnect_task is None

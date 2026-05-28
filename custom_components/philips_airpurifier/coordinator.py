@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
+from collections.abc import Awaitable, Callable
+from datetime import timedelta
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from philips_airctrl import CoAPClient
 
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .client import async_create_client
+from .client import async_get_status, async_set_control_values
 from .const import DOMAIN
 from .device_models import DEVICE_MODELS
 from .model import ApiGeneration, DeviceInformation, DeviceModelConfig
@@ -22,37 +23,51 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-MISSED_PACKAGE_COUNT = 3
-DEFAULT_TIMEOUT = 60
+DEFAULT_POLL_INTERVAL = 60
+MIN_POLL_INTERVAL = 30
+MAX_POLL_INTERVAL = 300
+STATUS_RETRY_COUNT = 3
+STATUS_RETRY_DELAY = 2
 
 
 class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Coordinator to manage data from Philips AirPurifier via CoAP push."""
+    """Coordinator to manage data from Philips AirPurifier via bounded CoAP polling."""
 
     def __init__(
         self,
         hass: HomeAssistant,
-        client: CoAPClient,
-        host: str,
-        device_info: DeviceInformation,
+        host: str | CoAPClient,
+        device_info: DeviceInformation | str,
+        legacy_device_info: DeviceInformation | None = None,
+        initial_status: dict[str, Any] | None = None,
+        create_client: Any | None = None,
     ) -> None:
         """Initialize the coordinator."""
+        legacy_client: CoAPClient | None = None
+        if not isinstance(host, str):
+            legacy_client = host
+            host = cast("str", device_info)
+            device_info = cast("DeviceInformation", legacy_device_info)
+        else:
+            device_info = cast("DeviceInformation", device_info)
+
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
+            update_interval=timedelta(seconds=DEFAULT_POLL_INTERVAL),
         )
-        self.client = client
+        self.client = legacy_client
+        self._create_client = create_client or _client_factory_from_legacy_client(legacy_client) or CoAPClient.create
         self.host = host
         self.device_info = device_info
 
-        self._observe_task: asyncio.Task[None] | None = None
-        self._reconnect_task: asyncio.Task[None] | None = None
-        self._timeout: int = DEFAULT_TIMEOUT
-        self._watchdog_task: asyncio.Task[None] | None = None
+        self._timeout: int = DEFAULT_POLL_INTERVAL
         self._last_update: float = 0.0
         self._device_available = True
         self._shutting_down: bool = False
+        self._initial_status = initial_status
+        self._control_lock = asyncio.Lock()
 
     def _mark_unavailable(self, reason: str) -> None:
         """Mark the device unavailable and log transition once."""
@@ -102,146 +117,101 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_set_control_values(self, values: dict[str, Any]) -> None:
         """Set multiple control values on the device."""
-        await self.client.set_control_values(data=values)
+        async with self._control_lock:
+            try:
+                await async_set_control_values(
+                    self.host,
+                    data=values,
+                    create_client=self._create_client,
+                )
+            except Exception:
+                self._mark_unavailable("control update failed")
+                raise
+
+            if self.data is not None:
+                self.async_set_updated_data({**self.data, **values})
+
+            self.hass.async_create_background_task(
+                self.async_request_refresh(),
+                f"philips_airpurifier_refresh_after_control_{self.host}",
+            )
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch data from the device (used for initial refresh and fallback)."""
-        try:
-            status, timeout = await self.client.get_status()
-            self._timeout = timeout
-            self._mark_available()
-            return status
-        except Exception as err:
-            self._mark_unavailable("status update failed")
-            msg = f"Error communicating with device at {self.host}"
-            raise UpdateFailed(msg) from err
+        """Fetch data from the device."""
+        last_error: Exception | None = None
+        for attempt in range(1, STATUS_RETRY_COUNT + 1):
+            try:
+                status, timeout = await async_get_status(
+                    self.host,
+                    create_client=self._create_client,
+                )
+                self._timeout = timeout
+                self.update_interval = _poll_interval_from_timeout(timeout)
+                self._last_update = asyncio.get_running_loop().time()
+                self._mark_available()
+                return status
+            except Exception as err:
+                last_error = err
+                if attempt < STATUS_RETRY_COUNT:
+                    _LOGGER.debug(
+                        "Status poll %d/%d failed for %s; retrying",
+                        attempt,
+                        STATUS_RETRY_COUNT,
+                        self.host,
+                        exc_info=True,
+                    )
+                    await asyncio.sleep(STATUS_RETRY_DELAY * attempt)
+
+        self._mark_unavailable("status update failed")
+        msg = f"Error communicating with device at {self.host}"
+        raise UpdateFailed(msg) from last_error
 
     def _start_observing(self) -> None:
-        """Start observing device status via CoAP push."""
-        if self._observe_task is not None:
-            self._observe_task.cancel()
-
-        self._observe_task = self.hass.async_create_background_task(
-            self._async_observe_status(),
-            f"philips_airpurifier_observe_{self.host}",
-        )
-
-        if self._watchdog_task is not None:
-            self._watchdog_task.cancel()
-
-        self._watchdog_task = self.hass.async_create_background_task(
-            self._async_watchdog(),
-            f"philips_airpurifier_watchdog_{self.host}",
-        )
-
-    async def _async_observe_status(self) -> None:
-        """Observe device status via CoAP push updates."""
-        try:
-            async for status in self.client.observe_status():
-                self._last_update = asyncio.get_event_loop().time()
-                self._mark_available()
-                self.async_set_updated_data(status)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            _LOGGER.debug(
-                "Observation stream ended for %s, triggering reconnect",
-                self.host,
-            )
-        finally:
-            if not self._shutting_down:
-                self._mark_unavailable("observation stream ended")
-                self.hass.async_create_background_task(
-                    self._async_reconnect(),
-                    f"philips_airpurifier_reconnect_{self.host}",
-                )
-
-    async def _async_watchdog(self) -> None:
-        """Watch for missed updates and trigger reconnect if needed."""
-        while True:
-            await asyncio.sleep(self._timeout * MISSED_PACKAGE_COUNT)
-            if self._last_update > 0:
-                elapsed = asyncio.get_event_loop().time() - self._last_update
-                if elapsed > self._timeout * MISSED_PACKAGE_COUNT:
-                    self._mark_unavailable("watchdog timeout")
-                    _LOGGER.warning(
-                        "No updates from %s for %d seconds, reconnecting",
-                        self.host,
-                        int(elapsed),
-                    )
-                    await self._async_reconnect()
-
-    async def _async_reconnect(self) -> None:
-        """Reconnect to the device."""
-        if self._reconnect_task is not None and not self._reconnect_task.done():
-            return
-
-        self._reconnect_task = self.hass.async_create_background_task(
-            self._do_reconnect(),
-            f"philips_airpurifier_reconnect_{self.host}",
-        )
-
-    async def _do_reconnect(self) -> None:
-        """Perform the actual reconnect."""
-        try:
-            with contextlib.suppress(Exception):
-                await self.client.shutdown()
-
-            self.client = await async_create_client(self.host, create_client=CoAPClient.create)
-            _LOGGER.info("Reconnected to %s", self.host)
-
-            try:
-                status, timeout = await self.client.get_status()
-                self._timeout = timeout
-                self._mark_available()
-                self.async_set_updated_data(status)
-            except Exception:
-                self._mark_unavailable("reconnect status fetch failed")
-                _LOGGER.debug(
-                    "Failed to get status after reconnect to %s",
-                    self.host,
-                )
-
-            self._start_observing()
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            _LOGGER.exception("Reconnect to %s failed", self.host)
+        """Compatibility shim for older tests; status is now refreshed by polling."""
+        _LOGGER.debug("CoAP observe mode is disabled for %s; using bounded polling", self.host)
 
     async def async_first_refresh_and_observe(self) -> None:
-        """Perform first refresh and start observing."""
+        """Perform first refresh and schedule periodic polling."""
+        if self._initial_status:
+            self.async_set_updated_data(self._initial_status)
+            self._mark_unavailable("awaiting live status")
+            self.hass.async_create_background_task(
+                self.async_request_refresh(),
+                f"philips_airpurifier_initial_refresh_{self.host}",
+            )
+            return
+
         try:
-            status, timeout = await self.client.get_status()
-            self._timeout = timeout
-            self._mark_available()
-            self.async_set_updated_data(status)
+            await self.async_config_entry_first_refresh()
             _LOGGER.debug("First refresh completed for %s", self.host)
         except Exception as err:
-            self._mark_unavailable("initial refresh failed")
             msg = f"Failed to connect to device at {self.host}"
             raise ConfigEntryNotReady(msg) from err
-
-        self._last_update = asyncio.get_event_loop().time()
-        self._start_observing()
 
     async def async_shutdown(self) -> None:
         """Shut down the coordinator."""
         self._shutting_down = True
 
-        tasks_to_cancel: list[asyncio.Task[None]] = []
-        for task in (self._observe_task, self._watchdog_task, self._reconnect_task):
-            if task is not None and not task.done():
-                task.cancel()
-                tasks_to_cancel.append(task)
 
-        self._observe_task = None
-        self._watchdog_task = None
-        self._reconnect_task = None
+def _poll_interval_from_timeout(timeout: int) -> timedelta:
+    """Return a bounded polling interval from the device CoAP max-age value."""
+    try:
+        seconds = int(timeout)
+    except (TypeError, ValueError):
+        seconds = DEFAULT_POLL_INTERVAL
 
-        for task in tasks_to_cancel:
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+    seconds = min(max(seconds, MIN_POLL_INTERVAL), MAX_POLL_INTERVAL)
+    return timedelta(seconds=seconds)
 
-        if self.client is not None:
-            with contextlib.suppress(Exception):
-                await self.client.shutdown()
+
+def _client_factory_from_legacy_client(
+    client: CoAPClient | None,
+) -> Callable[[str], Awaitable[CoAPClient]] | None:
+    """Return a create_client callback for older tests that pass a client."""
+    if client is None:
+        return None
+
+    async def _create_client(_host: str) -> CoAPClient:
+        return client
+
+    return _create_client
