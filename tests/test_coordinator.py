@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -21,6 +24,40 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .const import MOCK_STATUS_GEN1, TEST_DEVICE_ID, TEST_HOST, TEST_MODEL, TEST_NAME
+
+
+class _TestStatusRequester:
+    """Small aiocoap requester stand-in with an awaitable response."""
+
+    def __init__(self, client: AsyncMock) -> None:
+        async def _response() -> SimpleNamespace:
+            payload = json.dumps({"state": {"reported": client.status_data}}).encode()
+            return SimpleNamespace(
+                payload=payload,
+                opt=SimpleNamespace(max_age=client.status_max_age),
+            )
+
+        self.response = _response()
+
+
+class _TestClientContext:
+    """Record status poll requests."""
+
+    def __init__(self, client: AsyncMock) -> None:
+        self._client = client
+
+    def request(self, request: Any) -> _TestStatusRequester:
+        """Return a mocked requester."""
+        self._client.status_requests.append(request)
+        return _TestStatusRequester(self._client)
+
+
+class _TestEncryptionContext:
+    """Return plaintext test payloads unchanged."""
+
+    def decrypt(self, payload: str) -> str:
+        """Decrypt a payload."""
+        return payload
 
 
 async def test_coordinator_data_available(
@@ -119,20 +156,22 @@ async def test_coordinator_async_update_data(
     init_integration: MockConfigEntry,
     mock_coap_client: AsyncMock,
 ) -> None:
-    """Test coordinator polling calls get_status and updates interval."""
+    """Test coordinator polling uses non-observe status GET and updates interval."""
     coordinator = init_integration.runtime_data
 
-    mock_coap_client.get_status.reset_mock()
+    mock_coap_client.status_requests.clear()
     updated_status = MOCK_STATUS_GEN1.copy()
     updated_status["pm25"] = 25
-    mock_coap_client.get_status.return_value = (updated_status, 45)
+    mock_coap_client.status_data = updated_status
+    mock_coap_client.status_max_age = 45
 
     result = await coordinator._async_update_data()
 
     assert result == updated_status
     assert result["pm25"] == 25
     assert coordinator.update_interval == timedelta(seconds=45)
-    mock_coap_client.get_status.assert_called_once()
+    assert len(mock_coap_client.status_requests) == 1
+    assert mock_coap_client.status_requests[0].opt.observe is None
     mock_coap_client.shutdown.assert_called()
 
 
@@ -144,7 +183,7 @@ async def test_coordinator_async_update_data_error(
     """Test coordinator update data raises UpdateFailed on error."""
     coordinator = init_integration.runtime_data
 
-    mock_coap_client.get_status.side_effect = RuntimeError("connection error")
+    mock_coap_client.status_error = RuntimeError("connection error")
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
@@ -278,7 +317,15 @@ async def test_first_refresh_uses_cached_status_when_device_offline(hass: HomeAs
 async def test_first_refresh_and_observe_success(hass: HomeAssistant) -> None:
     """Test initial refresh stores data in polling mode."""
     client = AsyncMock()
-    client.get_status = AsyncMock(return_value=({"pwr": "1"}, 30))
+    client.host = TEST_HOST
+    client.port = 5683
+    client.STATUS_PATH = "/sys/dev/status"
+    client.status_data = {"pwr": "1"}
+    client.status_max_age = 30
+    client.status_error = None
+    client.status_requests = []
+    client._client_context = _TestClientContext(client)
+    client._encryption_context = _TestEncryptionContext()
     client.shutdown = AsyncMock()
     coordinator = _make_coordinator(hass, client=client)
 

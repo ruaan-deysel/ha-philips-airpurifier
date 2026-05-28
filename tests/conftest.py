@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
@@ -21,7 +23,58 @@ from homeassistant.core import HomeAssistant
 from .const import MOCK_STATUS_GEN1, TEST_DEVICE_ID, TEST_HOST, TEST_MODEL, TEST_NAME
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from collections.abc import Generator
+
+
+class _MockStatusRequester:
+    """Small aiocoap requester stand-in with an awaitable response."""
+
+    def __init__(self, client: AsyncMock) -> None:
+        async def _response() -> SimpleNamespace:
+            if client.status_error is not None:
+                raise client.status_error
+            payload = json.dumps({"state": {"reported": client.status_data}}).encode()
+            return SimpleNamespace(
+                payload=payload,
+                opt=SimpleNamespace(max_age=client.status_max_age),
+            )
+
+        self.response = _response()
+
+
+class _MockClientContext:
+    """Record CoAP requests issued by the integration."""
+
+    def __init__(self, client: AsyncMock) -> None:
+        self._client = client
+
+    def request(self, request: Any) -> _MockStatusRequester:
+        """Return a mocked requester for a status poll."""
+        self._client.status_requests.append(request)
+        return _MockStatusRequester(self._client)
+
+
+class _MockEncryptionContext:
+    """Return plaintext test payloads unchanged."""
+
+    def decrypt(self, payload: str) -> str:
+        """Decrypt a payload."""
+        return payload
+
+
+def _configure_status_poll_client(client: AsyncMock, status: dict[str, Any]) -> None:
+    """Configure a mock CoAP client for non-observe status polling."""
+    client.host = TEST_HOST
+    client.port = 5683
+    client.STATUS_PATH = "/sys/dev/status"
+    client.status_data = status.copy()
+    client.status_max_age = 60
+    client.status_error = None
+    client.status_requests = []
+    client._client_context = _MockClientContext(client)
+    client._encryption_context = _MockEncryptionContext()
 
 
 @pytest.fixture
@@ -57,6 +110,7 @@ def mock_coap_client() -> Generator[AsyncMock]:
         client.set_control_values = AsyncMock()
         client.set_control_value = AsyncMock()
         client.shutdown = AsyncMock()
+        _configure_status_poll_client(client, MOCK_STATUS_GEN1)
 
         mock_client_cls.create = AsyncMock(return_value=client)
         mock_client_cls.return_value = client

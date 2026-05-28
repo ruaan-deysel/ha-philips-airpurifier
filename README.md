@@ -58,11 +58,11 @@ The integration uses a bounded polling model:
 
 - Every status refresh creates a fresh CoAP client.
 - The client performs the Philips sync/encryption handshake.
-- Home Assistant requests the current device status.
+- Home Assistant requests the current device status with a plain CoAP GET that does not set the Observe option.
 - The response updates the fan, sensor, switch, light, select, number, climate, and humidifier entities.
 - The CoAP client is shut down after the request completes.
 
-By keeping each CoAP exchange short-lived, a failed or timed-out request is isolated to that poll. The next poll starts with a new client instead of depending on a long-running observation stream.
+By keeping each CoAP exchange short-lived and avoiding CoAP Observe registrations, a failed or timed-out request is isolated to that poll. The next poll starts with a new client instead of depending on a long-running observation stream.
 
 ### Polling and Recovery
 
@@ -70,6 +70,7 @@ By keeping each CoAP exchange short-lived, a failed or timed-out request is isol
 - Minimum polling interval: **30 seconds**
 - Maximum polling interval: **300 seconds**
 - Successful polls use the device CoAP `max-age` value, clamped to the range above
+- Status polling intentionally avoids CoAP Observe so device-side observation streams do not accumulate
 - Connect, status, control, and shutdown calls have explicit timeouts
 - Status reads are retried before the coordinator marks the device unavailable
 - If Home Assistant restarts while the purifier is temporarily unreachable, cached status data is used to load the known entity set while background polling continues
