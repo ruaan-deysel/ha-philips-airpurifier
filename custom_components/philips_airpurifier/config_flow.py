@@ -12,10 +12,11 @@ from homeassistant import config_entries, exceptions
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_NAME
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from .client import async_fetch_status
-from .const import CONF_DEVICE_ID, CONF_MODEL, CONF_STATUS, DOMAIN, PhilipsApi
+from .const import CONF_DEVICE_ID, CONF_MAC, CONF_MODEL, CONF_STATUS, DOMAIN, PhilipsApi
 from .device_models import DEVICE_MODELS
 from .helpers import extract_model, extract_name
 
@@ -41,6 +42,7 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize."""
         self._host: str | None = None
+        self._mac: str | None = None
         self._model: Any = None
         self._name: Any = None
         self._device_id: str | None = None
@@ -81,7 +83,11 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.debug("async_step_dhcp: called, found: %s", discovery_info)
 
         self._host = discovery_info.ip
-        _LOGGER.debug("trying to configure host: %s", self._host)
+        # Capture the MAC so the device is registered with a network-MAC
+        # connection, enabling DHCP re-discovery after an IP change (issue #8).
+        if discovery_info.macaddress:
+            self._mac = format_mac(discovery_info.macaddress)
+        _LOGGER.debug("trying to configure host: %s (mac: %s)", self._host, self._mac)
 
         # let's try and connect to an AirPurifier
         try:
@@ -151,9 +157,14 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         unique_id = self._device_id
         _LOGGER.debug("async_step_user: unique_id=%s", unique_id)
 
-        # set the unique id for the entry, abort if it already exists
+        # set the unique id for the entry, abort if it already exists.
+        # Update the stored host (and MAC) so a re-discovered device with a new
+        # IP keeps working instead of erroring out (issue #8).
         await self.async_set_unique_id(unique_id)
-        self._abort_if_unique_id_configured(updates={CONF_HOST: self._host})
+        updates: dict[str, Any] = {CONF_HOST: self._host}
+        if self._mac:
+            updates[CONF_MAC] = self._mac
+        self._abort_if_unique_id_configured(updates=updates)
 
         # store the data for the next step to get confirmation
         self.context.update(
@@ -185,6 +196,8 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input[CONF_DEVICE_ID] = self._device_id
             user_input[CONF_HOST] = self._host
             user_input[CONF_STATUS] = self._status
+            if self._mac:
+                user_input[CONF_MAC] = self._mac
 
             config_entry_name = f"{self._model} {self._name}"
 

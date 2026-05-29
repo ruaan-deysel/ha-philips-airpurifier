@@ -582,6 +582,26 @@ _CONFIG_AC32XX = DeviceModelConfig(
     ],
 )
 
+# AC2221 config (PureProtect Quiet 2200 series, e.g. AC2221/13).
+# Gen3 "Combo" purifier with PM2.5 + allergen index, lamp/ambient light and the
+# NEW2 preferred-index select. No humidifier and no gas sensor. See issue #26.
+_CONFIG_AC2221 = DeviceModelConfig(
+    api_generation=ApiGeneration.GEN3,
+    preset_modes=_AC32XX_PRESET_MODES,
+    speeds=_AC32XX_SPEEDS,
+    lights=[PhilipsApi.NEW2_DISPLAY_BACKLIGHT3],
+    switches=[
+        PhilipsApi.NEW2_CHILD_LOCK,
+        PhilipsApi.NEW2_BEEP,
+        PhilipsApi.NEW2_AUTO_PLUS_AI,
+    ],
+    selects=[
+        PhilipsApi.NEW2_PREFERRED_INDEX,
+        PhilipsApi.NEW2_LAMP_MODE,
+        PhilipsApi.NEW2_AMBIENT_LIGHT_MODE,
+    ],
+)
+
 # AC3210/AC3220/AC3221 config (overrides selects from AC32xx)
 _CONFIG_AC3210 = DeviceModelConfig(
     api_generation=ApiGeneration.GEN3,
@@ -784,6 +804,10 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
         # selects from PhilipsNewGenericFan: [NEW_PREFERRED_INDEX]
         selects=[PhilipsApi.NEW_PREFERRED_INDEX],
     ),
+    # =========================================================================
+    # AC2221 family (PureProtect Quiet 2200 series, e.g. AC2221/13)
+    # =========================================================================
+    FanModel.AC2221: _CONFIG_AC2221,
     # =========================================================================
     # AC2729
     # =========================================================================

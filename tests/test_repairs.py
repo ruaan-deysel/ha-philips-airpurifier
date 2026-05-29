@@ -592,7 +592,7 @@ async def test_check_health_creates_entity_registry_cleanup_issue(hass: HomeAssi
     coordinator.client = MagicMock()
     coordinator.data = {}
 
-    entry = SimpleNamespace(entry_id="entry-1")
+    entry = SimpleNamespace(entry_id="entry-1", data={}, options={})
     orphan = SimpleNamespace(entity_id="sensor.orphan", device_id="missing", unique_id="u1")
     dup1 = SimpleNamespace(entity_id="sensor.dup_1", device_id=None, unique_id="dup")
     dup2 = SimpleNamespace(entity_id="sensor.dup_2", device_id=None, unique_id="dup")
@@ -626,7 +626,7 @@ async def test_check_health_deletes_entity_registry_cleanup_issue_when_clean(
 
     async_create_issue(hass, "entity_registry_cleanup", "entity_registry_cleanup")
 
-    entry = SimpleNamespace(entry_id="entry-1")
+    entry = SimpleNamespace(entry_id="entry-1", data={}, options={})
     clean_entity = SimpleNamespace(entity_id="sensor.clean", device_id=None, unique_id="u1")
 
     with (

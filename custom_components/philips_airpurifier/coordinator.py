@@ -86,6 +86,11 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return self.device_info.name
 
     @property
+    def mac(self) -> str | None:
+        """Return the device MAC address, if known (from DHCP discovery)."""
+        return self.device_info.mac
+
+    @property
     def model_config(self) -> DeviceModelConfig:
         """Return the device model configuration."""
         model = self.device_info.model

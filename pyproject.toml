@@ -13,6 +13,19 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
+    # Linting/formatting and type checking. Required by scripts/lint,
+    # scripts/lint-check, scripts/type-check and the lint CI workflow, which all
+    # invoke `uv run ruff` / `uv run pyright`. ruff is pinned to the
+    # pre-commit-config version to avoid format drift between the two.
+    "ruff==0.15.1",
+    "pyright",
+    # The homeassistant floor keeps the resolver pinned to the latest stable
+    # Home Assistant. Without a floor, `uv lock --upgrade` can resolve backwards
+    # to ancient releases. pytest-homeassistant-custom-component is left
+    # unpinned so the resolver selects the release whose pinned HA matches the
+    # floor (the newest phacc targets pre-release HA). Dependabot (homeassistant
+    # group) bumps the floor on every stable HA release.
+    "homeassistant>=2026.5.4",
     "pytest-homeassistant-custom-component",
 ]
 
@@ -63,7 +76,7 @@ exclude_lines = [
 
 [tool.uv]
 # Security overrides: force patched versions of vulnerable transitive dependencies
-# pinned by homeassistant 2026.4.2 at vulnerable versions.
+# pinned by Home Assistant at vulnerable versions.
 override-dependencies = [
     "pyjwt>=2.12.0",   # CVE-2026-32597
     "uv>=0.11.6",      # GHSA-pjjw-68hj-v9mw

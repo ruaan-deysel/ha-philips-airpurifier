@@ -14,7 +14,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 
 from .client import async_fetch_status
-from .const import CONF_STATUS, DOMAIN
+from .const import CONF_STATUS, DOMAIN, OPT_FILTER_WARNING_ACK
 
 if TYPE_CHECKING:
     from .coordinator import PhilipsAirPurifierCoordinator
@@ -33,7 +33,7 @@ async def async_create_fix_flow(
     if issue_id == "entity_registry_cleanup":
         return EntityRegistryCleanupFlow()
     if issue_id == "filter_replacement_warning":
-        return FilterReplacementWarningFlow()
+        return FilterReplacementWarningFlow(data)
     if issue_id == "configuration_migration":
         return ConfigurationMigrationFlow()
     if issue_id == "duplicate_entities":
@@ -188,6 +188,10 @@ class EntityRegistryCleanupFlow(RepairsFlow):
 class FilterReplacementWarningFlow(RepairsFlow):
     """Handler for filter replacement warnings."""
 
+    def __init__(self, data: dict[str, str | int | float | None] | None = None) -> None:
+        """Store the issue data so we can locate the config entry."""
+        self._data = data or {}
+
     async def async_step_init(self, user_input: dict[str, str] | None = None) -> FlowResult:
         """Handle the initial step."""
         if user_input is not None:
@@ -205,7 +209,23 @@ class FilterReplacementWarningFlow(RepairsFlow):
         )
 
     async def async_step_acknowledge_warning(self) -> FlowResult:
-        """Acknowledge the filter warning."""
+        """Acknowledge the filter warning and stop it from reappearing.
+
+        The acknowledgment is persisted in the config entry options so the
+        periodic health check does not recreate the issue on the next
+        coordinator update. It is reset automatically once a filter reads as
+        freshly replaced (see ``async_check_integration_health``).
+        """
+        entry_id = self._data.get("entry_id")
+        if entry_id:
+            entry = self.hass.config_entries.async_get_entry(str(entry_id))
+            if entry is not None:
+                self.hass.config_entries.async_update_entry(
+                    entry,
+                    options={**entry.options, OPT_FILTER_WARNING_ACK: True},
+                )
+
+        async_delete_issue(self.hass, "filter_replacement_warning")
         return self.async_create_entry(title="Filter Warning Acknowledged", data={"result": "warning_acknowledged"})
 
 
@@ -395,15 +415,32 @@ async def async_check_integration_health(
                     filter_warning_needed = True
                     break
 
+    # Locate the config entry for this coordinator so the warning can be
+    # acknowledged persistently and reset once a filter is replaced (issue #29).
+    entry = next(
+        (e for e in hass.config_entries.async_entries(DOMAIN) if e.data.get(CONF_HOST) == coordinator.host),
+        None,
+    )
+    acknowledged = bool(entry and entry.options.get(OPT_FILTER_WARNING_ACK, False))
+
     if filter_warning_needed:
-        async_create_issue(
-            hass,
-            "filter_replacement_warning",
-            "filter_replacement_warning",
-            severity=ir.IssueSeverity.WARNING,
-        )
+        # Only (re)create the issue if the user has not already acknowledged it,
+        # otherwise it would reappear on the next coordinator update.
+        if not acknowledged:
+            async_create_issue(
+                hass,
+                "filter_replacement_warning",
+                "filter_replacement_warning",
+                severity=ir.IssueSeverity.WARNING,
+                data={"entry_id": entry.entry_id} if entry else None,
+            )
     else:
         async_delete_issue(hass, "filter_replacement_warning")
+        # Filters are healthy again (e.g. replaced): clear the acknowledgment so
+        # a future low-filter condition surfaces a fresh warning.
+        if acknowledged and entry is not None:
+            options = {k: v for k, v in entry.options.items() if k != OPT_FILTER_WARNING_ACK}
+            hass.config_entries.async_update_entry(entry, options=options)
 
     # Check for entity registry issues
     entity_registry = er.async_get(hass)

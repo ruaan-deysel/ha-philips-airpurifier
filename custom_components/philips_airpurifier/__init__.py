@@ -16,6 +16,7 @@ from homeassistant.helpers.typing import ConfigType
 from .client import async_create_client
 from .const import (
     CONF_DEVICE_ID,
+    CONF_MAC,
     CONF_MODEL,
     CONF_STATUS,
     DOMAIN,
@@ -32,6 +33,7 @@ type PhilipsAirPurifierConfigEntry = ConfigEntry[PhilipsAirPurifierCoordinator]
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.CLIMATE,
+    Platform.EVENT,
     Platform.FAN,
     Platform.HUMIDIFIER,
     Platform.LIGHT,
@@ -74,7 +76,7 @@ async def async_setup_entry(
 
     device_information = DeviceInformation(
         host=host,
-        mac=None,
+        mac=entry.data.get(CONF_MAC),
         model=model,
         name=name,
         device_id=device_id,

@@ -30,6 +30,31 @@ from .const import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _no_real_entry_setup() -> object:
+    """Neutralize the entry setup that the test harness runs after a flow.
+
+    Config-flow tests create real config entries; the harness then sets them up,
+    which would otherwise instantiate a real CoAP client and open a network
+    socket. Patching the integration's client (and the observe start) keeps that
+    automatic setup offline without affecting the flow assertions.
+    """
+    client = AsyncMock()
+    client.get_status = AsyncMock(return_value=(MOCK_STATUS_GEN1.copy(), 60))
+    client.set_control_values = AsyncMock()
+    client.set_control_value = AsyncMock()
+    client.shutdown = AsyncMock()
+    with (
+        patch("custom_components.philips_airpurifier.CoAPClient") as mock_setup_client_cls,
+        patch(
+            "custom_components.philips_airpurifier.coordinator.PhilipsAirPurifierCoordinator._start_observing",
+        ),
+    ):
+        mock_setup_client_cls.create = AsyncMock(return_value=client)
+        mock_setup_client_cls.return_value = client
+        yield
+
+
 async def test_user_flow_success(
     hass: HomeAssistant,
     mock_coap_client_config_flow: AsyncMock,

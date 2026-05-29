@@ -158,6 +158,20 @@
         }
       }
     },
+    "event": {
+      "notification": {
+        "name": "Notification",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "error": "Error",
+              "out_of_water": "Out of water",
+              "cleared": "Cleared"
+            }
+          }
+        }
+      }
+    },
     "sensor": {
       "indoor_allergen_index": {
         "name": "Indoor allergen index"

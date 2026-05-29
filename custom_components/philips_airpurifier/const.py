@@ -47,6 +47,15 @@ DEFAULT_NAME = "Philips AirPurifier"
 CONF_MODEL = "model"
 CONF_DEVICE_ID = "device_id"
 CONF_STATUS = "status"
+# MAC address captured during DHCP discovery. Stored so the device is registered
+# with a network-MAC connection, which lets the `registered_devices` DHCP matcher
+# re-discover the device and update its IP after a DHCP lease change. See issue #8.
+CONF_MAC = "mac"
+
+# Config-entry option flag set when the user acknowledges the filter
+# replacement repair, so it is not recreated on every coordinator update.
+# Reset automatically once a filter reads as freshly replaced. See issue #29.
+OPT_FILTER_WARNING_ACK = "filter_warning_acknowledged"
 
 SWITCH_ON = "on"
 TEST_ON = "on"
@@ -77,6 +86,7 @@ class FanModel(StrEnum):
     AC0951 = "AC0951"
     AC1214 = "AC1214"
     AC1715 = "AC1715"
+    AC2221 = "AC2221"
     AC2729 = "AC2729"
     AC2889 = "AC2889"
     AC2936 = "AC2936"
@@ -551,9 +561,13 @@ SENSOR_TYPES: dict[str, SensorDescription] = {
         ATTR_STATE_CLASS: SensorStateClass.MEASUREMENT,
     },
     PhilipsApi.TOTAL_VOLATILE_ORGANIC_COMPOUNDS: {
-        ATTR_DEVICE_CLASS: SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS,
+        # The Philips "tvoc" value is an air-quality level/index, not a mass
+        # concentration, so it must NOT use the volatile_organic_compounds
+        # device class (which mandates µg/m³ or mg/m³ and otherwise logs a
+        # validation warning on every state update). See issue #29.
         FanAttributes.LABEL: FanAttributes.TOTAL_VOLATILE_ORGANIC_COMPOUNDS,
         ATTR_STATE_CLASS: SensorStateClass.MEASUREMENT,
+        FanAttributes.ICON_MAP: {0: "mdi:blur"},
     },
     PhilipsApi.HUMIDITY: {
         ATTR_DEVICE_CLASS: SensorDeviceClass.HUMIDITY,
