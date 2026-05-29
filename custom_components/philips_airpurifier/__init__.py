@@ -113,7 +113,7 @@ async def async_setup_entry(
 
     coordinator = PhilipsAirPurifierCoordinator(hass, client, host, device_information)
 
-    # Perform initial data refresh, then start CoAP observation
+    # Wait for the first public CoAP observation, then keep that single stream open.
     await coordinator.async_first_refresh_and_observe()
     async_debug_event(
         hass,

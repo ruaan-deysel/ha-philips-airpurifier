@@ -44,12 +44,17 @@ def mock_config_entry() -> MockConfigEntry:
 @pytest.fixture
 def mock_coap_client() -> Generator[AsyncMock]:
     """Return a mocked CoAP client."""
+    def _fake_start_observing(coordinator) -> None:
+        coordinator._handle_status_success(MOCK_STATUS_GEN1.copy())
+
     with (
         patch(
             "custom_components.philips_airpurifier.CoAPClient",
         ) as mock_client_cls,
         patch(
             "custom_components.philips_airpurifier.coordinator.PhilipsAirPurifierCoordinator._start_observing",
+            autospec=True,
+            side_effect=_fake_start_observing,
         ),
     ):
         client = AsyncMock()
@@ -78,6 +83,9 @@ def mock_coap_client_config_flow() -> Generator[AsyncMock]:
     client.set_control_value = AsyncMock()
     client.shutdown = AsyncMock()
 
+    def _fake_start_observing(coordinator) -> None:
+        coordinator._handle_status_success(MOCK_STATUS_GEN1.copy())
+
     with (
         patch(
             "custom_components.philips_airpurifier.config_flow.CoAPClient",
@@ -87,6 +95,8 @@ def mock_coap_client_config_flow() -> Generator[AsyncMock]:
         ) as mock_setup_client_cls,
         patch(
             "custom_components.philips_airpurifier.coordinator.PhilipsAirPurifierCoordinator._start_observing",
+            autospec=True,
+            side_effect=_fake_start_observing,
         ),
     ):
         mock_flow_client_cls.create = AsyncMock(return_value=client)

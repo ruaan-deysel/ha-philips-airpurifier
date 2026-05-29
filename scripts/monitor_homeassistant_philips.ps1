@@ -6,6 +6,7 @@ param(
     [int]$DurationMinutes = 30,
     [int]$IntervalSeconds = 60,
     [string]$EntityPattern = "air_purifier",
+    [string]$PowerPlugEntity = "switch.electric_blanket",
     [string]$SambaShare = "\\192.168.1.153\config",
     [switch]$SkipLogs
 )
@@ -142,6 +143,7 @@ while ((Get-Date) -lt $endAt) {
     $unknown = @($entities | Where-Object { $_.state -eq "unknown" })
     $pm25 = $states | Where-Object { $_.entity_id -eq "sensor.air_purifier_pm2_5" } | Select-Object -First 1
     $rssi = $states | Where-Object { $_.entity_id -eq "sensor.air_purifier_rssi" } | Select-Object -First 1
+    $powerPlug = $states | Where-Object { $_.entity_id -eq $PowerPlugEntity } | Select-Object -First 1
 
     if ($unavailable.Count -gt 0) {
         $unavailableSamples++
@@ -155,6 +157,7 @@ while ((Get-Date) -lt $endAt) {
         fan = ($states | Where-Object { $_.entity_id -eq "fan.air_purifier" } | Select-Object -First 1).state
         pm25 = $pm25.state
         rssi = $rssi.state
+        power_plug = $powerPlug.state
     }
     $samples += $sample
     $sample | ConvertTo-Json -Compress

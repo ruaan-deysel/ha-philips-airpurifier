@@ -27,8 +27,9 @@ async def async_fetch_status(
 ) -> dict[str, Any]:
     """Fetch current status using a temporary CoAP client and shut it down.
 
-    Uses ``observe=False`` (philips-airctrl >= 1.1.0) so this one-shot read does
-    not leave a CoAP observation registered on the device.
+    Use this only for short-lived discovery/config-flow probes. Philips status
+    reads are implemented through CoAP Observe, so the running coordinator keeps
+    one observation open instead of polling through this helper.
     """
     client = await async_create_client(host, timeout=connect_timeout, create_client=create_client)
     try:

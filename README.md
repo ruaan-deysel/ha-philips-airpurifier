@@ -54,9 +54,9 @@ A comprehensive **Local Push** integration for Philips air purifiers and humidif
 
 This integration communicates directly with Philips devices on your local network using encrypted CoAP over UDP port `5683`.
 
-Current versions use `philips-airctrl` 1.1.0 or newer. One-shot reads for discovery, setup, repairs, and reconnect checks call `get_status(observe=False)` so they do not register extra CoAP observations on the device.
+Current versions use `philips-airctrl` 1.1.0 or newer. Device status is received through one long-lived public CoAP observe stream rather than repeated status polling. This avoids repeatedly registering status observations on devices with limited observer capacity.
 
-After setup, Home Assistant listens for device status updates through a single CoAP observe stream. A watchdog monitors missed updates and reconnects with a fresh public `philips-airctrl` client when the stream stops. The integration records structured diagnostic events in `philips_airpurifier_debug.jsonl` inside the Home Assistant config directory so connection, reconnect, status, and watchdog failures can be inspected even when standard Home Assistant logs are not written to the Samba share.
+During setup, Home Assistant waits for the first payload from that stream and then keeps the stream open for later updates. The integration no longer treats a quiet stream as a failure by itself, because many devices only send observe notifications when values change. If the observe stream raises an error or ends, the integration reconnects with bounded backoff using the public `philips-airctrl` client API. Structured diagnostic events are written to `philips_airpurifier_debug.jsonl` inside the Home Assistant config directory so setup, observe, reconnect, control, and availability events can be inspected even when standard Home Assistant logs are not written to the Samba share.
 
 Control actions use the same public client API and are logged as structured diagnostic events.
 
@@ -126,8 +126,6 @@ If your device changes IP addresses:
 - **Manual Setup**: Add the device again with the new IP address - Home Assistant will recognize it's the same device and update the configuration
 
 ## 📱 Supported Devices
-
-> **⚠️ Firmware Compatibility Warning**: Some newer firmware versions may disable local CoAP communication. If purchasing a device specifically for Home Assistant integration, ensure you can return it if the integration doesn't work.
 
 ### Device Support Summary
 
