@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from time import perf_counter
 
 from philips_airctrl import CoAPClient
 
@@ -22,6 +23,7 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import PhilipsAirPurifierCoordinator
+from .debug_log import async_debug_event, exception_data, package_version
 from .model import DeviceInformation
 from .repairs import async_check_integration_health
 from .services import async_setup_services, async_unload_services
@@ -65,12 +67,39 @@ async def async_setup_entry(
     device_id = entry.data[CONF_DEVICE_ID]
 
     _LOGGER.debug("async_setup_entry called for host %s", host)
+    async_debug_event(
+        hass,
+        "setup_start",
+        entry_id=entry.entry_id,
+        host=host,
+        model=model,
+        name=name,
+        device_id=device_id,
+        cached_status=CONF_STATUS in entry.data,
+        philips_airctrl_version=package_version("philips-airctrl"),
+    )
 
     try:
+        start = perf_counter()
         client = await async_create_client(host, timeout=25, create_client=CoAPClient.create)
+        async_debug_event(
+            hass,
+            "setup_client_created",
+            entry_id=entry.entry_id,
+            host=host,
+            elapsed_seconds=round(perf_counter() - start, 3),
+            philips_airctrl_version=package_version("philips-airctrl"),
+        )
         _LOGGER.debug("Got a valid client for host %s", host)
     except Exception as err:
         _LOGGER.warning("Failed to connect to host %s: %s", host, err)
+        async_debug_event(
+            hass,
+            "setup_client_failed",
+            entry_id=entry.entry_id,
+            host=host,
+            **exception_data(err),
+        )
         msg = f"Failed to connect to device at {host}"
         raise ConfigEntryNotReady(msg) from err
 
@@ -86,6 +115,13 @@ async def async_setup_entry(
 
     # Perform initial data refresh, then start CoAP observation
     await coordinator.async_first_refresh_and_observe()
+    async_debug_event(
+        hass,
+        "setup_first_refresh_done",
+        entry_id=entry.entry_id,
+        host=host,
+        available=coordinator.last_update_success,
+    )
 
     hass.async_create_task(async_check_integration_health(hass, coordinator))
 
@@ -104,6 +140,13 @@ async def async_setup_entry(
     entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    async_debug_event(
+        hass,
+        "setup_platforms_forwarded",
+        entry_id=entry.entry_id,
+        host=host,
+        platforms=[platform.value for platform in PLATFORMS],
+    )
 
     return True
 
@@ -121,6 +164,12 @@ async def async_unload_entry(
             remove_health_listener()
 
         await entry.runtime_data.async_shutdown()
+        async_debug_event(
+            hass,
+            "entry_unloaded",
+            entry_id=entry.entry_id,
+            host=entry.data.get(CONF_HOST),
+        )
 
         loaded_entries = [
             config_entry

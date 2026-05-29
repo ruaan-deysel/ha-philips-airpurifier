@@ -28,7 +28,7 @@ A comprehensive **Local Push** integration for Philips air purifiers and humidif
 ## 📋 Table of Contents
 
 - [Features](#-features)
-- [Important Notice](#️-important-notice)
+- [How It Works](#how-it-works)
 - [Installation](#-installation)
   - [HACS Installation (Recommended)](#hacs-installation-recommended)
   - [Manual Installation](#manual-installation)
@@ -50,17 +50,15 @@ A comprehensive **Local Push** integration for Philips air purifiers and humidif
 - **Multi-language Support**: Available in English, German, Dutch, Bulgarian, Romanian, and Slovak
 - **HACS Compatible**: Easy installation and updates through HACS
 
-## ⚠️ Important Notice
+## How It Works
 
-**Please read this carefully before installation:**
+This integration communicates directly with Philips devices on your local network using encrypted CoAP over UDP port `5683`.
 
-Due to firmware limitations in Philips devices, this integration may experience stability issues. The connection might work initially but could become unresponsive over time. Common solutions include:
+Current versions use `philips-airctrl` 1.1.0 or newer. One-shot reads for discovery, setup, repairs, and reconnect checks call `get_status(observe=False)` so they do not register extra CoAP observations on the device.
 
-- Power cycling the Philips device
-- Restarting Home Assistant
-- Both actions combined
+After setup, Home Assistant listens for device status updates through a single CoAP observe stream. A watchdog monitors missed updates and reconnects with a fresh public `philips-airctrl` client when the stream stops. The integration records structured diagnostic events in `philips_airpurifier_debug.jsonl` inside the Home Assistant config directory so connection, reconnect, status, and watchdog failures can be inspected even when standard Home Assistant logs are not written to the Samba share.
 
-This integration includes automatic reconnection attempts, but they may not always succeed. These issues are inherent to the device firmware and cannot be resolved at the integration level.
+Control actions use the same public client API and are logged as structured diagnostic events.
 
 **Background**: This integration is based on reverse engineering work by [@rgerganov](https://github.com/rgerganov). Read more about the technical details [here](https://xakcop.com/post/ctrl-air-purifier/).
 
@@ -91,7 +89,7 @@ This integration includes automatic reconnection attempts, but they may not alwa
 
 - Home Assistant 2026.4.0 or newer
 - Philips air purifier/humidifier connected to your local network
-- Device must support local CoAP communication (see [Important Notice](#️-important-notice))
+- Device must support local CoAP communication (see [How It Works](#how-it-works))
 
 ### Setup Steps
 

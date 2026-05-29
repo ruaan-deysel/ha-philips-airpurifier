@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+pytestmark = pytest.mark.unit
+
 from custom_components.philips_airpurifier.coordinator import (
     PhilipsAirPurifierCoordinator,
 )
