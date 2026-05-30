@@ -114,7 +114,8 @@ async def async_setup_entry(
     coordinator = PhilipsAirPurifierCoordinator(hass, client, host, device_information)
 
     # Wait for the first public CoAP observation, then keep that single stream open.
-    await coordinator.async_first_refresh_and_observe()
+    # If cached status exists, setup can complete without starting HA's retry loop.
+    await coordinator.async_first_refresh_and_observe(entry.data.get(CONF_STATUS))
     async_debug_event(
         hass,
         "setup_first_refresh_done",
