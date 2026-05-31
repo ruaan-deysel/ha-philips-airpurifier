@@ -193,6 +193,21 @@ async def test_observe_status_error_schedules_reconnect(hass: HomeAssistant) -> 
     assert coordinator.last_update_success is False
 
 
+async def test_observe_status_idle_timeout_schedules_reconnect(hass: HomeAssistant) -> None:
+    """Test a silent observe stream is treated as stale and reconnected."""
+    client = AsyncMock()
+    client.observe_status = MagicMock(return_value=_status_stream({"pwr": "1"}, block=True))
+    coordinator = _make_coordinator(hass, client=client)
+    coordinator._observe_idle_timeout = 0.01
+
+    with patch.object(coordinator, "_schedule_reconnect") as schedule_reconnect:
+        await coordinator._async_observe_status()
+
+    schedule_reconnect.assert_called_once()
+    assert schedule_reconnect.call_args.args[0] == "observe_idle_timeout"
+    assert coordinator.last_update_success is False
+
+
 async def test_do_reconnect_success_starts_new_observe_stream(hass: HomeAssistant) -> None:
     """Test reconnect creates a new client and waits for observed status."""
     old_client = AsyncMock()
