@@ -31,11 +31,6 @@ CONTROL_TIMEOUT = 25
 SHUTDOWN_TIMEOUT = 5
 RECONNECT_BACKOFF_SECONDS = 60
 MAX_RECONNECT_BACKOFF_SECONDS = 900
-OBSERVE_IDLE_TIMEOUT_SECONDS = 1800
-
-
-class ObserveIdleTimeout(TimeoutError):
-    """Raised when the public observe stream stops delivering updates."""
 
 
 class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -56,10 +51,8 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         self._observe_task: asyncio.Task[None] | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
-        self._initial_observe_timeout_task: asyncio.Task[None] | None = None
         self._first_status_future: asyncio.Future[dict[str, Any]] | None = None
         self._timeout: int = DEFAULT_OBSERVE_MAX_AGE
-        self._observe_idle_timeout: float = OBSERVE_IDLE_TIMEOUT_SECONDS
         self._last_update: float = 0.0
         self._device_available = True
         self._shutting_down = False
@@ -176,40 +169,17 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_observe_status(self) -> None:
         """Observe device status via public CoAP push updates."""
-        self._debug_event("observe_loop_start", idle_timeout_seconds=self._observe_idle_timeout)
+        self._debug_event("observe_loop_start")
         try:
-            stream = self.client.observe_status()
-            async with contextlib.aclosing(stream):
-                while not self._shutting_down:
-                    try:
-                        status = await asyncio.wait_for(anext(stream), timeout=self._observe_idle_timeout)
-                    except StopAsyncIteration:
-                        if self._shutting_down:
-                            break
-                        msg = "observation stream ended"
-                        raise RuntimeError(msg) from None
-                    except TimeoutError as err:
-                        seconds_since_last_update = self._seconds_since_last_update()
-                        self._debug_event(
-                            "observe_idle_timeout",
-                            idle_timeout_seconds=self._observe_idle_timeout,
-                            seconds_since_last_update=seconds_since_last_update,
-                        )
-                        msg = f"observation stream idle for {self._observe_idle_timeout} seconds"
-                        raise ObserveIdleTimeout(msg) from err
-
-                    self._handle_status_success(status)
+            async for status in self.client.observe_status():
+                self._handle_status_success(status)
+            if not self._shutting_down:
+                msg = "observation stream ended"
+                raise RuntimeError(msg)
         except asyncio.CancelledError:
             self._debug_event("observe_cancelled")
             self._reject_first_status(asyncio.CancelledError())
             raise
-        except ObserveIdleTimeout as err:
-            self._reject_first_status(err)
-            self._consecutive_failures += 1
-            self._mark_unavailable("observation stream idle")
-            self._debug_event("observe_failed", reason="idle_timeout", **exception_data(err))
-            if not self._shutting_down:
-                self._schedule_reconnect("observe_idle_timeout", delay=self._next_reconnect_delay())
         except Exception as err:
             self._reject_first_status(err)
             self._consecutive_failures += 1
@@ -228,12 +198,6 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.async_set_updated_data(status)
         self._resolve_first_status(status)
         self._debug_event("observe_update", **status_data(status))
-
-    def _seconds_since_last_update(self) -> float | None:
-        """Return monotonic age of the last observed payload."""
-        if self._last_update <= 0:
-            return None
-        return round(asyncio.get_running_loop().time() - self._last_update, 3)
 
     def _resolve_first_status(self, status: dict[str, Any]) -> None:
         """Resolve the setup/reconnect waiter when the first observation arrives."""
@@ -263,25 +227,6 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Return a bounded reconnect backoff based on consecutive failures."""
         multiplier = max(self._consecutive_failures, 1)
         return min(RECONNECT_BACKOFF_SECONDS * multiplier, MAX_RECONNECT_BACKOFF_SECONDS)
-
-    async def _async_initial_observe_timeout(self, future: asyncio.Future[dict[str, Any]]) -> None:
-        """Mark cached setup unavailable if no fresh observation arrives."""
-        try:
-            await asyncio.wait_for(asyncio.shield(future), timeout=FIRST_STATUS_TIMEOUT)
-        except TimeoutError as err:
-            self._consecutive_failures += 1
-            self._first_status_future = None
-            self._mark_unavailable("initial observation timed out")
-            self._debug_event("first_refresh_timeout_using_cached_status", **exception_data(err))
-            self._schedule_reconnect("initial_observe_timeout", delay=self._next_reconnect_delay())
-        except asyncio.CancelledError:
-            raise
-        except Exception as err:
-            self._consecutive_failures += 1
-            self._first_status_future = None
-            self._mark_unavailable("initial observation failed")
-            self._debug_event("first_refresh_failed_using_cached_status", **exception_data(err))
-            self._schedule_reconnect("initial_observe_failed", delay=self._next_reconnect_delay())
 
     async def _do_reconnect(self, reason: str, delay: int) -> None:
         """Reconnect and wait for the first observed status payload."""
@@ -343,16 +288,14 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.async_set_updated_data(cached_status)
             self._debug_event("cached_status_loaded", **status_data(cached_status))
 
-        self._first_status_future = asyncio.get_running_loop().create_future()
-        self._start_observing()
         if has_cached_status:
-            self._initial_observe_timeout_task = self.hass.async_create_background_task(
-                self._async_initial_observe_timeout(self._first_status_future),
-                f"philips_airpurifier_initial_observe_timeout_{self.host}",
-            )
+            self._first_status_future = None
+            self._start_observing()
             self._debug_event("first_refresh_using_cached_status")
             return
 
+        self._first_status_future = asyncio.get_running_loop().create_future()
+        self._start_observing()
         try:
             await asyncio.wait_for(self._first_status_future, timeout=FIRST_STATUS_TIMEOUT)
         except TimeoutError as err:
@@ -367,12 +310,6 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             msg = f"Failed to observe device at {self.host}"
             raise ConfigEntryNotReady(msg) from err
         except Exception as err:
-            if has_cached_status:
-                self._first_status_future = None
-                self._mark_unavailable("initial observation failed")
-                self._debug_event("first_refresh_failed_using_cached_status", **exception_data(err))
-                return
-
             self._mark_unavailable("initial observation failed")
             self._debug_event("first_refresh_failed", **exception_data(err))
             if self._observe_task is not None and not self._observe_task.done():
@@ -396,13 +333,9 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if task is not None and not task.done():
                 task.cancel()
                 tasks_to_cancel.append(task)
-        if self._initial_observe_timeout_task is not None and not self._initial_observe_timeout_task.done():
-            self._initial_observe_timeout_task.cancel()
-            tasks_to_cancel.append(self._initial_observe_timeout_task)
 
         self._observe_task = None
         self._reconnect_task = None
-        self._initial_observe_timeout_task = None
 
         for task in tasks_to_cancel:
             with contextlib.suppress(asyncio.CancelledError):

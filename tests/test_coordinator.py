@@ -193,19 +193,42 @@ async def test_observe_status_error_schedules_reconnect(hass: HomeAssistant) -> 
     assert coordinator.last_update_success is False
 
 
-async def test_observe_status_idle_timeout_schedules_reconnect(hass: HomeAssistant) -> None:
-    """Test a silent observe stream is treated as stale and reconnected."""
+async def test_observe_status_quiet_stream_stays_open(hass: HomeAssistant) -> None:
+    """Test a quiet observe stream is not reconnected solely because it is quiet."""
     client = AsyncMock()
     client.observe_status = MagicMock(return_value=_status_stream({"pwr": "1"}, block=True))
     coordinator = _make_coordinator(hass, client=client)
-    coordinator._observe_idle_timeout = 0.01
 
     with patch.object(coordinator, "_schedule_reconnect") as schedule_reconnect:
-        await coordinator._async_observe_status()
+        task = hass.async_create_task(coordinator._async_observe_status())
+        while coordinator.data is None:
+            await asyncio.sleep(0)
+        await asyncio.sleep(0.02)
 
-    schedule_reconnect.assert_called_once()
-    assert schedule_reconnect.call_args.args[0] == "observe_idle_timeout"
-    assert coordinator.last_update_success is False
+    assert not task.done()
+    schedule_reconnect.assert_not_called()
+
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+
+
+async def test_first_refresh_with_cached_status_does_not_watchdog_quiet_stream(hass: HomeAssistant) -> None:
+    """Test cached setup does not reconnect when no fresh payload arrives."""
+    client = AsyncMock()
+    client.observe_status = MagicMock(return_value=_blocking_stream_without_payload())
+    coordinator = _make_coordinator(hass, client=client)
+
+    with patch.object(coordinator, "_schedule_reconnect") as schedule_reconnect:
+        await coordinator.async_first_refresh_and_observe(MOCK_STATUS_GEN1.copy())
+        await asyncio.sleep(0.02)
+
+    assert coordinator.data["pwr"] == "1"
+    assert coordinator._observe_task is not None
+    assert not coordinator._observe_task.done()
+    schedule_reconnect.assert_not_called()
+
+    await coordinator.async_shutdown()
 
 
 async def test_do_reconnect_success_starts_new_observe_stream(hass: HomeAssistant) -> None:
@@ -309,6 +332,12 @@ async def _status_stream(status: dict[str, object], *, block: bool = False):
 async def _failing_stream(err: Exception):
     """Raise an exception from an async generator."""
     raise err
+    yield {}
+
+
+async def _blocking_stream_without_payload():
+    """Keep an async generator open without yielding a status payload."""
+    await asyncio.Event().wait()
     yield {}
 
 
