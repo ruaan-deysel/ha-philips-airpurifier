@@ -232,22 +232,27 @@ async def test_first_refresh_with_cached_status_does_not_watchdog_quiet_stream(h
 
 
 async def test_do_reconnect_success_starts_new_observe_stream(hass: HomeAssistant) -> None:
-    """Test reconnect creates a new client and waits for observed status."""
+    """Test reconnect creates a new client and keeps a quiet observe stream open."""
     old_client = AsyncMock()
     old_client.shutdown = AsyncMock()
     new_client = AsyncMock()
-    new_client.observe_status = MagicMock(return_value=_status_stream({"pwr": "1", "pm25": 7}, block=True))
+    new_client.observe_status = MagicMock(return_value=_blocking_stream_without_payload())
     coordinator = _make_coordinator(hass, client=old_client)
+    coordinator.async_set_updated_data(MOCK_STATUS_GEN1.copy())
+    coordinator._mark_unavailable("test")
 
     with patch(
         "custom_components.philips_airpurifier.coordinator.async_create_client",
         new=AsyncMock(return_value=new_client),
     ):
-        await coordinator._do_reconnect("test", 0)
+        await asyncio.wait_for(coordinator._do_reconnect("test", 0), timeout=1)
 
     old_client.shutdown.assert_awaited_once()
     assert coordinator.client == new_client
-    assert coordinator.data["pm25"] == 7
+    assert coordinator.last_update_success is True
+    assert coordinator.data["pwr"] == "1"
+    assert coordinator._observe_task is not None
+    assert not coordinator._observe_task.done()
 
     await coordinator.async_shutdown()
 

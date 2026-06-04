@@ -26,7 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_OBSERVE_MAX_AGE = 60
 CONNECT_TIMEOUT = 25
-FIRST_STATUS_TIMEOUT = 90
+INITIAL_STATUS_TIMEOUT = 90
 CONTROL_TIMEOUT = 25
 SHUTDOWN_TIMEOUT = 5
 RECONNECT_BACKOFF_SECONDS = 60
@@ -241,7 +241,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return min(RECONNECT_BACKOFF_SECONDS * multiplier, MAX_RECONNECT_BACKOFF_SECONDS)
 
     async def _do_reconnect(self, reason: str, delay: int) -> None:
-        """Reconnect and wait for the first observed status payload."""
+        """Reconnect and restart the long-lived observe stream."""
         try:
             if delay > 0:
                 await asyncio.sleep(delay)
@@ -271,10 +271,11 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 elapsed_seconds=round(perf_counter() - start, 3),
             )
 
-            self._first_status_future = asyncio.get_running_loop().create_future()
+            self._first_status_future = None
             self._start_observing()
-            await asyncio.wait_for(self._first_status_future, timeout=FIRST_STATUS_TIMEOUT)
-            self._debug_event("reconnect_success", reason=reason)
+            self._consecutive_failures = 0
+            self._mark_available()
+            self._debug_event("reconnect_success", reason=reason, waiting_for_first_observe_payload=False)
         except asyncio.CancelledError:
             self._debug_event("reconnect_cancelled", reason=reason)
             raise
@@ -317,7 +318,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._first_status_future = asyncio.get_running_loop().create_future()
         self._start_observing()
         try:
-            await asyncio.wait_for(self._first_status_future, timeout=FIRST_STATUS_TIMEOUT)
+            await asyncio.wait_for(self._first_status_future, timeout=INITIAL_STATUS_TIMEOUT)
         except TimeoutError as err:
             self._mark_unavailable("initial observation failed")
             self._debug_event("first_refresh_failed", **exception_data(err))
