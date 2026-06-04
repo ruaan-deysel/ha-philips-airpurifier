@@ -39,7 +39,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(
         self,
         hass: HomeAssistant,
-        client: CoAPClient,
+        client: CoAPClient | None,
         host: str,
         device_info: DeviceInformation,
     ) -> None:
@@ -133,6 +133,13 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_set_control_values(self, values: dict[str, Any]) -> None:
         """Set multiple control values on the device."""
         self._debug_event("control_start", values=values)
+        if self.client is None:
+            self._mark_unavailable("control update failed")
+            self._schedule_reconnect("control_failed")
+            msg = f"No connected client is available for device at {self.host}"
+            self._debug_event("control_failed", values=values, error=msg)
+            raise UpdateFailed(msg)
+
         async with self._control_lock:
             try:
                 await asyncio.wait_for(
@@ -159,6 +166,11 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _start_observing(self) -> None:
         """Start observing device status via one long-lived CoAP observe stream."""
         self._debug_event("observe_start_requested")
+        if self.client is None:
+            self._debug_event("observe_start_skipped", reason="client_unavailable")
+            self._schedule_reconnect("client_unavailable", delay=self._next_reconnect_delay())
+            return
+
         if self._observe_task is not None and not self._observe_task.done():
             self._observe_task.cancel()
 
@@ -243,8 +255,9 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     await self._observe_task
             self._observe_task = None
 
-            with contextlib.suppress(Exception):
-                await asyncio.wait_for(self.client.shutdown(), timeout=SHUTDOWN_TIMEOUT)
+            if self.client is not None:
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(self.client.shutdown(), timeout=SHUTDOWN_TIMEOUT)
 
             start = perf_counter()
             self.client = await async_create_client(
@@ -290,9 +303,16 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         if has_cached_status:
             self._first_status_future = None
+            if self.client is None:
+                self._mark_unavailable("initial client unavailable")
             self._start_observing()
             self._debug_event("first_refresh_using_cached_status")
             return
+
+        if self.client is None:
+            self._mark_unavailable("initial connection failed")
+            msg = f"Failed to connect to device at {self.host}"
+            raise ConfigEntryNotReady(msg)
 
         self._first_status_future = asyncio.get_running_loop().create_future()
         self._start_observing()

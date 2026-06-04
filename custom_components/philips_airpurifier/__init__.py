@@ -79,6 +79,7 @@ async def async_setup_entry(
         philips_airctrl_version=package_version("philips-airctrl"),
     )
 
+    client: CoAPClient | None = None
     try:
         start = perf_counter()
         client = await async_create_client(host, timeout=25, create_client=CoAPClient.create)
@@ -100,8 +101,13 @@ async def async_setup_entry(
             host=host,
             **exception_data(err),
         )
-        msg = f"Failed to connect to device at {host}"
-        raise ConfigEntryNotReady(msg) from err
+        if CONF_STATUS not in entry.data:
+            msg = f"Failed to connect to device at {host}"
+            raise ConfigEntryNotReady(msg) from err
+        _LOGGER.warning(
+            "Device at %s is offline during setup; loading cached status and reconnecting in the background",
+            host,
+        )
 
     device_information = DeviceInformation(
         host=host,

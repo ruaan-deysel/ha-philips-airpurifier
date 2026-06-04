@@ -10,6 +10,7 @@ from custom_components.philips_airpurifier import async_unload_entry
 from custom_components.philips_airpurifier.const import (
     CONF_DEVICE_ID,
     CONF_MODEL,
+    CONF_STATUS,
     DOMAIN,
 )
 from homeassistant.config_entries import ConfigEntryState
@@ -29,17 +30,49 @@ async def test_setup_entry_connection_error(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
 ) -> None:
-    """Test setup fails when connection cannot be established."""
-    with patch(
-        "custom_components.philips_airpurifier.CoAPClient",
-    ) as mock_client_cls:
+    """Test cached setup loads unavailable when connection cannot be established."""
+    with (
+        patch("custom_components.philips_airpurifier.CoAPClient") as mock_client_cls,
+        patch(
+            "custom_components.philips_airpurifier.coordinator.PhilipsAirPurifierCoordinator._schedule_reconnect",
+        ) as schedule_reconnect,
+    ):
         mock_client_cls.create = AsyncMock(side_effect=TimeoutError)
         mock_config_entry.add_to_hass(hass)
 
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-        assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+        assert mock_config_entry.state is ConfigEntryState.LOADED
+        assert mock_config_entry.runtime_data.data == mock_config_entry.data[CONF_STATUS]
+        assert mock_config_entry.runtime_data.last_update_success is False
+        schedule_reconnect.assert_called()
+
+
+async def test_setup_entry_connection_error_without_cached_status_retries(
+    hass: HomeAssistant,
+) -> None:
+    """Test setup retries when connection fails and no cached status exists."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="AC3858/51 Living Room",
+        data={
+            CONF_HOST: "192.168.1.100",
+            CONF_MODEL: "AC3858/51",
+            CONF_NAME: "Living Room",
+            CONF_DEVICE_ID: "aabbccddeeff",
+        },
+        unique_id="aabbccddeeff",
+    )
+
+    with patch("custom_components.philips_airpurifier.CoAPClient") as mock_client_cls:
+        mock_client_cls.create = AsyncMock(side_effect=TimeoutError)
+        entry.add_to_hass(hass)
+
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        assert entry.state is ConfigEntryState.SETUP_RETRY
 
 
 async def test_unload_entry(
