@@ -214,7 +214,7 @@ async def test_observe_status_quiet_stream_stays_open(hass: HomeAssistant) -> No
 
 
 async def test_first_refresh_with_cached_status_does_not_watchdog_quiet_stream(hass: HomeAssistant) -> None:
-    """Test cached setup does not reconnect when no fresh payload arrives."""
+    """Test cached setup stays unavailable when no fresh payload arrives."""
     client = AsyncMock()
     client.observe_status = MagicMock(return_value=_blocking_stream_without_payload())
     coordinator = _make_coordinator(hass, client=client)
@@ -224,6 +224,7 @@ async def test_first_refresh_with_cached_status_does_not_watchdog_quiet_stream(h
         await asyncio.sleep(0.02)
 
     assert coordinator.data["pwr"] == "1"
+    assert coordinator.last_update_success is False
     assert coordinator._observe_task is not None
     assert not coordinator._observe_task.done()
     schedule_reconnect.assert_not_called()
@@ -232,7 +233,7 @@ async def test_first_refresh_with_cached_status_does_not_watchdog_quiet_stream(h
 
 
 async def test_do_reconnect_success_starts_new_observe_stream(hass: HomeAssistant) -> None:
-    """Test reconnect creates a new client and keeps a quiet observe stream open."""
+    """Test reconnect keeps a quiet observe stream open without marking live."""
     old_client = AsyncMock()
     old_client.shutdown = AsyncMock()
     new_client = AsyncMock()
@@ -249,7 +250,7 @@ async def test_do_reconnect_success_starts_new_observe_stream(hass: HomeAssistan
 
     old_client.shutdown.assert_awaited_once()
     assert coordinator.client == new_client
-    assert coordinator.last_update_success is True
+    assert coordinator.last_update_success is False
     assert coordinator.data["pwr"] == "1"
     assert coordinator._observe_task is not None
     assert not coordinator._observe_task.done()

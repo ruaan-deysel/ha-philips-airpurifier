@@ -274,8 +274,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._first_status_future = None
             self._start_observing()
             self._consecutive_failures = 0
-            self._mark_available()
-            self._debug_event("reconnect_success", reason=reason, waiting_for_first_observe_payload=False)
+            self._debug_event("reconnect_observe_started", reason=reason, waiting_for_first_observe_payload=True)
         except asyncio.CancelledError:
             self._debug_event("reconnect_cancelled", reason=reason)
             raise
@@ -306,6 +305,8 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._first_status_future = None
             if self.client is None:
                 self._mark_unavailable("initial client unavailable")
+            else:
+                self._mark_unavailable("cached status awaiting fresh observation")
             self._start_observing()
             self._debug_event("first_refresh_using_cached_status")
             return
