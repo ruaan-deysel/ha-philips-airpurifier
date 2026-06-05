@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.philips_airpurifier.coordinator import (
     MAX_RECONNECT_BACKOFF_SECONDS,
+    SNAPSHOT_FAILURES_BEFORE_RECONNECT,
     PhilipsAirPurifierCoordinator,
 )
 from custom_components.philips_airpurifier.model import DeviceInformation
@@ -288,6 +289,39 @@ async def test_reconnect_backoff_is_bounded(hass: HomeAssistant) -> None:
     coordinator._consecutive_failures = 100
 
     assert coordinator._next_reconnect_delay() == MAX_RECONNECT_BACKOFF_SECONDS
+
+
+async def test_snapshot_failure_tolerates_first_missed_refresh(hass: HomeAssistant) -> None:
+    """Test one missed periodic snapshot does not flap entity availability."""
+    coordinator = _make_coordinator(hass)
+    coordinator.async_set_updated_data(MOCK_STATUS_GEN1.copy())
+    coordinator._mark_available()
+
+    with patch.object(coordinator, "_schedule_reconnect") as schedule_reconnect:
+        needs_reconnect = coordinator._handle_snapshot_failure("periodic_snapshot", TimeoutError())
+
+    assert needs_reconnect is False
+    assert coordinator._device_available is True
+    assert coordinator.last_update_success is True
+    assert coordinator._consecutive_failures == 1
+    schedule_reconnect.assert_not_called()
+
+
+async def test_repeated_snapshot_failures_mark_unavailable(hass: HomeAssistant) -> None:
+    """Test repeated missed snapshots still protect HA from stale live state."""
+    coordinator = _make_coordinator(hass)
+    coordinator.async_set_updated_data(MOCK_STATUS_GEN1.copy())
+    coordinator._mark_available()
+    coordinator._consecutive_failures = SNAPSHOT_FAILURES_BEFORE_RECONNECT - 1
+
+    with patch.object(coordinator, "_schedule_reconnect") as schedule_reconnect:
+        needs_reconnect = coordinator._handle_snapshot_failure("periodic_snapshot", TimeoutError())
+
+    assert needs_reconnect is True
+    assert coordinator._device_available is False
+    assert coordinator.last_update_success is False
+    assert coordinator._consecutive_failures == SNAPSHOT_FAILURES_BEFORE_RECONNECT
+    schedule_reconnect.assert_called_once()
 
 
 async def test_coordinator_shutdown_cancels_tasks(hass: HomeAssistant) -> None:

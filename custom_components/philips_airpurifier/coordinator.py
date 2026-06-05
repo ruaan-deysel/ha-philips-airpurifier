@@ -27,6 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_OBSERVE_MAX_AGE = 60
 CONNECT_TIMEOUT = 25
 STATUS_SNAPSHOT_TIMEOUT = 25
+SNAPSHOT_FAILURES_BEFORE_RECONNECT = 2
 CONTROL_TIMEOUT = 25
 SHUTDOWN_TIMEOUT = 5
 RECONNECT_BACKOFF_SECONDS = 60
@@ -202,16 +203,31 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 try:
                     await self._async_fetch_status_snapshot("periodic_snapshot")
                 except Exception as err:
-                    self._consecutive_failures += 1
-                    self._mark_unavailable("status snapshot failed")
-                    self._debug_event("snapshot_failed", reason="periodic_snapshot", **exception_data(err))
-                    self._schedule_reconnect("snapshot_failed", delay=self._next_reconnect_delay())
-                    return
+                    if self._handle_snapshot_failure("periodic_snapshot", err):
+                        return
         except asyncio.CancelledError:
             self._debug_event("snapshot_cancelled")
             raise
         finally:
             self._debug_event("snapshot_loop_ended", shutting_down=self._shutting_down)
+
+    def _handle_snapshot_failure(self, reason: str, err: Exception) -> bool:
+        """Record a snapshot failure and return whether reconnect is needed."""
+        self._consecutive_failures += 1
+        fields = {
+            "reason": reason,
+            "failure_threshold": SNAPSHOT_FAILURES_BEFORE_RECONNECT,
+            **exception_data(err),
+        }
+
+        if self._consecutive_failures < SNAPSHOT_FAILURES_BEFORE_RECONNECT:
+            self._debug_event("snapshot_missed", **fields)
+            return False
+
+        self._mark_unavailable("status snapshot failed")
+        self._debug_event("snapshot_failed", **fields)
+        self._schedule_reconnect("snapshot_failed", delay=self._next_reconnect_delay())
+        return True
 
     async def _async_fetch_status_snapshot(self, reason: str) -> dict[str, Any]:
         """Fetch one current status snapshot and cancel the temporary observation."""
