@@ -27,9 +27,9 @@ async def async_fetch_status(
 ) -> dict[str, Any]:
     """Fetch current status using a temporary CoAP client and shut it down.
 
-    Use this only for short-lived discovery/config-flow probes. Philips status
-    reads are implemented through CoAP Observe, so the running coordinator keeps
-    one observation open instead of polling through this helper.
+    Use this only for short-lived discovery/config-flow probes. The running
+    coordinator uses its persistent client for bounded snapshots and one
+    long-lived observation instead of creating ad hoc clients.
     """
     client = await async_create_client(host, timeout=connect_timeout, create_client=create_client)
     try:

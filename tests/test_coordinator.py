@@ -137,23 +137,27 @@ async def test_coordinator_async_update_data_without_observed_data_raises(
 
 
 async def test_first_refresh_and_observe_uses_one_public_observe_stream(hass: HomeAssistant) -> None:
-    """Test first refresh waits for the first observation payload."""
+    """Test first refresh fetches a snapshot and starts observation."""
     client = AsyncMock()
+    client.get_status = AsyncMock(return_value=(MOCK_STATUS_GEN1.copy(), 60))
     client.observe_status = MagicMock(return_value=_status_stream(MOCK_STATUS_GEN1.copy(), block=True))
     coordinator = _make_coordinator(hass, client=client)
 
     await coordinator.async_first_refresh_and_observe()
 
+    client.get_status.assert_awaited_once_with(observe=False)
     client.observe_status.assert_called_once_with()
     assert coordinator.data["pwr"] == "1"
     assert coordinator._observe_task is not None
+    assert coordinator._snapshot_task is not None
 
     await coordinator.async_shutdown()
 
 
 async def test_first_refresh_and_observe_raises_not_ready(hass: HomeAssistant) -> None:
-    """Test initial observation failure raises ConfigEntryNotReady."""
+    """Test initial snapshot failure raises ConfigEntryNotReady."""
     client = AsyncMock()
+    client.get_status = AsyncMock(side_effect=RuntimeError("offline"))
     client.observe_status = MagicMock(return_value=_failing_stream(RuntimeError("offline")))
     coordinator = _make_coordinator(hass, client=client)
 
@@ -214,8 +218,9 @@ async def test_observe_status_quiet_stream_stays_open(hass: HomeAssistant) -> No
 
 
 async def test_first_refresh_with_cached_status_does_not_watchdog_quiet_stream(hass: HomeAssistant) -> None:
-    """Test cached setup stays unavailable when no fresh payload arrives."""
+    """Test cached setup uses one snapshot and keeps a quiet observe stream open."""
     client = AsyncMock()
+    client.get_status = AsyncMock(return_value=({**MOCK_STATUS_GEN1, "pm25": 7}, 60))
     client.observe_status = MagicMock(return_value=_blocking_stream_without_payload())
     coordinator = _make_coordinator(hass, client=client)
 
@@ -224,19 +229,22 @@ async def test_first_refresh_with_cached_status_does_not_watchdog_quiet_stream(h
         await asyncio.sleep(0.02)
 
     assert coordinator.data["pwr"] == "1"
-    assert coordinator.last_update_success is False
+    assert coordinator.data["pm25"] == 7
+    assert coordinator.last_update_success is True
     assert coordinator._observe_task is not None
     assert not coordinator._observe_task.done()
+    assert coordinator._snapshot_task is not None
     schedule_reconnect.assert_not_called()
 
     await coordinator.async_shutdown()
 
 
 async def test_do_reconnect_success_starts_new_observe_stream(hass: HomeAssistant) -> None:
-    """Test reconnect keeps a quiet observe stream open without marking live."""
+    """Test reconnect refreshes a snapshot and keeps a quiet observe stream open."""
     old_client = AsyncMock()
     old_client.shutdown = AsyncMock()
     new_client = AsyncMock()
+    new_client.get_status = AsyncMock(return_value=({**MOCK_STATUS_GEN1, "pm25": 7}, 60))
     new_client.observe_status = MagicMock(return_value=_blocking_stream_without_payload())
     coordinator = _make_coordinator(hass, client=old_client)
     coordinator.async_set_updated_data(MOCK_STATUS_GEN1.copy())
@@ -249,11 +257,14 @@ async def test_do_reconnect_success_starts_new_observe_stream(hass: HomeAssistan
         await asyncio.wait_for(coordinator._do_reconnect("test", 0), timeout=1)
 
     old_client.shutdown.assert_awaited_once()
+    new_client.get_status.assert_awaited_once_with(observe=False)
     assert coordinator.client == new_client
-    assert coordinator.last_update_success is False
+    assert coordinator.last_update_success is True
     assert coordinator.data["pwr"] == "1"
+    assert coordinator.data["pm25"] == 7
     assert coordinator._observe_task is not None
     assert not coordinator._observe_task.done()
+    assert coordinator._snapshot_task is not None
 
     await coordinator.async_shutdown()
 
@@ -288,16 +299,20 @@ async def test_coordinator_shutdown_cancels_tasks(hass: HomeAssistant) -> None:
         await asyncio.Event().wait()
 
     observe_task = hass.async_create_task(_block_forever())
+    snapshot_task = hass.async_create_task(_block_forever())
     reconnect_task = hass.async_create_task(_block_forever())
     coordinator._observe_task = observe_task
+    coordinator._snapshot_task = snapshot_task
     coordinator._reconnect_task = reconnect_task
 
     await coordinator.async_shutdown()
 
     assert observe_task.cancelled()
+    assert snapshot_task.cancelled()
     assert reconnect_task.cancelled()
     client.shutdown.assert_awaited_once()
     assert coordinator._observe_task is None
+    assert coordinator._snapshot_task is None
     assert coordinator._reconnect_task is None
 
 
