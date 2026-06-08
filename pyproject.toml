@@ -29,7 +29,7 @@ dev = [
     # unpinned so the resolver selects the release whose pinned HA matches the
     # floor (the newest phacc targets pre-release HA). Dependabot (homeassistant
     # group) bumps the floor on every stable HA release.
-    "homeassistant>=2026.6.0",
+    "homeassistant>=2026.6.1",
     "pytest-homeassistant-custom-component",
 ]
 
