@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# script/help: Display available project scripts
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+printf "Available scripts:\n\n"
+
+if [[ -d "$SCRIPT_DIR" ]]; then
+    find "$SCRIPT_DIR" -maxdepth 1 -type f -perm -111 -printf "  script/%f\n" | sort
+fi
+
+printf "\nUse: ./script/<name> [args]\n"

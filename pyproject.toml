@@ -19,6 +19,10 @@ dev = [
     # pre-commit-config version to avoid format drift between the two.
     "ruff==0.15.16",
     "pyright",
+    # Linting tools for script/yaml-check, script/spell-check and related
+    # scripts from the script/ toolchain.
+    "yamllint",
+    "codespell",
     # The homeassistant floor keeps the resolver pinned to the latest stable
     # Home Assistant. Without a floor, `uv lock --upgrade` can resolve backwards
     # to ancient releases. pytest-homeassistant-custom-component is left

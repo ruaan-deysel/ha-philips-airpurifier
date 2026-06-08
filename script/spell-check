@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# script/spell-check: Check spelling without making changes
+#
+# Runs codespell in check-only mode without applying fixes. Useful for CI/CD
+# and pre-commit validation.
+#
+# Usage:
+#   ./script/spell-check
+#
+# Examples:
+#   ./script/spell-check
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+activate_venv
+
+run_hook "spell-check" "pre"
+
+log_header "Checking spelling with codespell"
+codespell \
+    --ignore-words-list=aiport,astroid,checkin,currenty,hass,iif,incomfort,lookin,nam,NotIn \
+    --skip="./.*,*.csv,*.json,*.ambr,uv.lock" \
+    --quiet-level=2 \
+    custom_components/ \
+    README.md \
+    CONTRIBUTING.md \
+    DEPENDENCIES.md \
+    script/ \
+    tests/
+
+# Clean up any accidental package installation from uv run
+"$SCRIPT_DIR/clean" --minimal
+
+run_hook "spell-check" "post"
+log_success "Spell check completed"

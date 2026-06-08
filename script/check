@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# script/check: Run all checks (type, lint, spell) — recommended before committing
+#
+# Runs the full validation suite in sequence:
+#   type-check      Pyright type checking
+#   lint-check      Python (Ruff), YAML (yamllint), Shell (shfmt + shellcheck), Markdown
+#   spell-check     Spelling (codespell)
+#
+# For targeted checks after specific file type changes:
+#   ./script/type-check     Python type checking only (Pyright)
+#   ./script/python-check   Python lint/format only (Ruff)
+#   ./script/yaml-check     YAML only (yamllint)
+#   ./script/shell-check    Shell only (shfmt + shellcheck)
+#   ./script/spell-check    Spelling only (codespell)
+#
+# Usage:
+#   ./script/check
+#
+# Examples:
+#   ./script/check
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+activate_venv
+
+run_hook "check" "pre"
+
+"$SCRIPT_DIR/type-check"
+echo ""
+"$SCRIPT_DIR/lint-check"
+echo ""
+"$SCRIPT_DIR/spell-check"
+
+# Run hassfest validation if it has been set up (only in local environment, not CI)
+# Check both possible ha-core locations (DevContainer uses $HOME/.local, local uses workspace .local)
+if [ -z "${CI:-}" ] && [ -z "${GITHUB_ACTIONS:-}" ] && { [ -d "$SCRIPT_DIR/../.local/ha-core" ] || [ -d "$HOME/.local/ha-core" ]; }; then
+    echo ""
+    "$SCRIPT_DIR/hassfest"
+fi
+
+run_hook "check" "post"
+
+log_success "All checks passed"

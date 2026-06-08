@@ -21,6 +21,16 @@ HumidifierDescription = dict[str, Any]
 HeaterDescription = dict[str, Any]
 
 
+def _default_nested_map() -> dict[str, dict[str, Any]]:
+    """Return a typed nested dict default."""
+    return {}
+
+
+def _default_string_list() -> list[str]:
+    """Return a typed list default."""
+    return []
+
+
 @dataclass
 class DeviceInformation:
     """Device information class."""
@@ -51,17 +61,17 @@ class DeviceModelConfig:
     """
 
     api_generation: ApiGeneration
-    preset_modes: dict[str, dict[str, Any]] = field(default_factory=dict)
-    speeds: dict[str, dict[str, Any]] = field(default_factory=dict)
-    switches: list[str] = field(default_factory=list)
-    lights: list[str] = field(default_factory=list)
-    selects: list[str] = field(default_factory=list)
-    numbers: list[str] = field(default_factory=list)
-    humidifiers: list[str] = field(default_factory=list)
-    heaters: list[str] = field(default_factory=list)
-    binary_sensors: list[str] = field(default_factory=list)
-    unavailable_filters: list[str] = field(default_factory=list)
-    unavailable_sensors: list[str] = field(default_factory=list)
+    preset_modes: dict[str, dict[str, Any]] = field(default_factory=_default_nested_map)
+    speeds: dict[str, dict[str, Any]] = field(default_factory=_default_nested_map)
+    switches: list[str] = field(default_factory=_default_string_list)
+    lights: list[str] = field(default_factory=_default_string_list)
+    selects: list[str] = field(default_factory=_default_string_list)
+    numbers: list[str] = field(default_factory=_default_string_list)
+    humidifiers: list[str] = field(default_factory=_default_string_list)
+    heaters: list[str] = field(default_factory=_default_string_list)
+    binary_sensors: list[str] = field(default_factory=_default_string_list)
+    unavailable_filters: list[str] = field(default_factory=_default_string_list)
+    unavailable_sensors: list[str] = field(default_factory=_default_string_list)
     oscillation: dict[str, dict[str, Any]] | None = None
     create_fan: bool = True
     # Special behavior flags

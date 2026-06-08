@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# script/yaml-check: Check YAML files with yamllint
+#
+# Runs yamllint in check-only mode against integration YAML, schemas,
+# GitHub Actions workflows, and config files. yamllint has no auto-fix mode.
+# Useful for targeted validation after YAML changes.
+#
+# Usage:
+#   ./script/yaml-check
+#
+# Examples:
+#   ./script/yaml-check
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+activate_venv
+
+run_hook "yaml-check" "pre"
+
+log_header "Checking YAML with yamllint"
+yamllint -c .yamllint.yml \
+    custom_components/philips_airpurifier/ \
+    .github/
+
+run_hook "yaml-check" "post"
+log_success "YAML check completed"

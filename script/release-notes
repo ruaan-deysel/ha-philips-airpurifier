@@ -1,0 +1,459 @@
+#!/bin/bash
+
+# script/release-notes: Enhance release notes with GitHub Copilot CLI
+#
+# Generates AI-enhanced release notes based on conventional commits and the
+# current release-please PR. Uses GitHub Copilot CLI in programmatic mode.
+# Collects rich context (commit bodies, file stats, code diffs) so the AI
+# can translate technical changes into user-friendly descriptions.
+#
+# Usage:
+#   ./script/release-notes [--apply|--interactive]
+#
+# Examples:
+#   ./script/release-notes               # Print enhanced notes to stdout
+#   ./script/release-notes --apply       # Update the open release-please PR
+#   ./script/release-notes --interactive # Launch Copilot CLI with context
+#
+# Environment:
+#   COPILOT_MODEL            Override AI model (default: claude-sonnet-4.6)
+#   RELEASE_NOTES_DIFF_MAX   Max bytes for code diff context (default: 8000)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+MODE="${1:-stdout}"
+SCRATCH_DIR=".ai-scratch"
+
+# Configuration
+COPILOT_MODEL="${COPILOT_MODEL:-claude-sonnet-4.6}"
+DIFF_MAX_BYTES="${RELEASE_NOTES_DIFF_MAX:-8000}"
+
+# Integration domain — used for path filtering
+DOMAIN="ha_integration_domain"
+COMPONENT_DIR="custom_components/$DOMAIN"
+
+# User-facing paths (changes here are most relevant for release notes)
+USER_FACING_PATHS=(
+    "$COMPONENT_DIR/sensor/"
+    "$COMPONENT_DIR/binary_sensor/"
+    "$COMPONENT_DIR/switch/"
+    "$COMPONENT_DIR/select/"
+    "$COMPONENT_DIR/number/"
+    "$COMPONENT_DIR/button/"
+    "$COMPONENT_DIR/fan/"
+    "$COMPONENT_DIR/config_flow_handler/"
+    "$COMPONENT_DIR/service_actions/"
+    "$COMPONENT_DIR/translations/"
+    "$COMPONENT_DIR/services.yaml"
+    "$COMPONENT_DIR/manifest.json"
+)
+
+# ---------------------------------------------------------------------------
+# Prerequisites
+# ---------------------------------------------------------------------------
+
+# Resolve copilot binary — prefer node_modules/.bin, then PATH
+COPILOT_BIN=""
+if [[ -x "$PWD/node_modules/.bin/copilot" ]]; then
+    COPILOT_BIN="$PWD/node_modules/.bin/copilot"
+elif command -v copilot >/dev/null 2>&1; then
+    COPILOT_BIN="copilot"
+fi
+
+if [[ -z "$COPILOT_BIN" ]]; then
+    die "GitHub Copilot CLI not found. Install with: npm install @github/copilot"
+fi
+
+require_command jq "apt-get install jq"
+require_command gh "https://cli.github.com/"
+
+# ---------------------------------------------------------------------------
+# Helper: Check if a commit is marked to skip release notes
+# Supported trailers (case-insensitive):
+#   Release-Notes: skip
+#   User-Impact: none
+# ---------------------------------------------------------------------------
+
+commit_should_skip() {
+    local body
+    body=$(git show -s --format=%B "$1" 2>/dev/null || true)
+    if printf "%s\n" "$body" | grep -Eiq '^[[:space:]]*release[ -]notes:[[:space:]]*skip([[:space:]]|$)'; then
+        return 0
+    fi
+    if printf "%s\n" "$body" | grep -Eiq '^[[:space:]]*user-impact:[[:space:]]*none([[:space:]]|$)'; then
+        return 0
+    fi
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# Helper: Build rich commit context (subject + body + file stats per commit)
+# ---------------------------------------------------------------------------
+
+build_commit_context() {
+    local range="$1"
+    local output=""
+    local commit_hash short_hash subject body stat
+
+    while IFS= read -r commit_hash; do
+        if commit_should_skip "$commit_hash"; then
+            continue
+        fi
+        short_hash=$(git rev-parse --short "$commit_hash")
+        subject=$(git show -s --format=%s "$commit_hash")
+        body=$(git show -s --format=%b "$commit_hash")
+        stat=$(git show --stat --compact-summary --format='' "$commit_hash" 2>/dev/null || true)
+
+        output+="${short_hash} | ${subject}"$'\n'
+        if [[ -n "$body" ]]; then
+            output+="${body}"$'\n'
+        fi
+        if [[ -n "$stat" ]]; then
+            output+="${stat}"$'\n'
+        fi
+        output+=$'\n'
+    done < <(git rev-list --reverse "$range")
+
+    printf "%s" "$output"
+}
+
+# ---------------------------------------------------------------------------
+# Helper: Build compact code diff for user-facing paths
+# ---------------------------------------------------------------------------
+
+build_user_facing_diff() {
+    local range="$1"
+    local diff_context=""
+
+    # Compact diff: only changed/added lines, no full context
+    if ! diff_context=$(
+        set -o pipefail
+        git diff --unified=0 --no-color --minimal --patience --diff-filter=AM \
+            "$range" -- "${USER_FACING_PATHS[@]}" 2>/dev/null |
+            awk '
+                /^diff --git / { print; next }
+                /^--- / || /^\+\+\+ / || /^@@ / { print; next }
+                /^[+-]/ {
+                    sub(/[ \t]+$/, "", $0)
+                    print
+                    next
+                }
+            ' |
+            head -c "$DIFF_MAX_BYTES"
+    ); then
+        # Fallback to basic diff with context
+        diff_context=$(git diff --unified=2 --diff-filter=AM \
+            "$range" -- "${USER_FACING_PATHS[@]}" 2>/dev/null |
+            head -c "$DIFF_MAX_BYTES" || true)
+    fi
+
+    echo "$diff_context"
+}
+
+# ---------------------------------------------------------------------------
+# Gather context
+# ---------------------------------------------------------------------------
+
+log_header "Gathering release context"
+
+# Current version from manifest
+CURRENT_VERSION=$("$SCRIPT_DIR/version")
+log_info "Current version: $CURRENT_VERSION"
+
+# Find last tag (fallback to initial commit if none exists)
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+if [[ -n "$LAST_TAG" ]]; then
+    RANGE="$LAST_TAG..HEAD"
+    log_info "Changes since tag: $LAST_TAG"
+else
+    FIRST_COMMIT=$(git rev-list --max-parents=0 HEAD)
+    RANGE="$FIRST_COMMIT..HEAD"
+    log_info "No previous tag found — using all commits"
+fi
+
+# Rich commit log (subject + body + file stats)
+log_step "Collecting commit details..."
+COMMIT_CONTEXT=$(build_commit_context "$RANGE")
+COMMIT_COUNT=$(git rev-list --count "$RANGE" 2>/dev/null || echo "0")
+log_info "Commits in range: $COMMIT_COUNT"
+
+# Final net file changes (source of truth when commits revert each other)
+FINAL_FILE_CHANGES=$(git diff --name-status "$RANGE" 2>/dev/null || echo "(none)")
+
+# Revert commits (chronology hints for the AI)
+REVERT_COMMITS=$(git log --reverse --pretty=format:"%h | %s" "$RANGE" 2>/dev/null |
+    grep -Ei '\|[[:space:]]*revert\b' || echo "(none)")
+
+# User-facing code diff (token-limited)
+log_step "Building code diff for user-facing paths..."
+USER_DIFF=$(build_user_facing_diff "$RANGE")
+if [[ -z "$USER_DIFF" ]]; then
+    USER_DIFF="(no user-facing code changes)"
+fi
+
+# Try to find open release-please PR
+PR_JSON=""
+PR_BODY=""
+PR_NUMBER=""
+if gh auth status >/dev/null 2>&1; then
+    PR_JSON=$(gh pr list --label "autorelease: pending" --json number,body --limit 1 2>/dev/null || echo "[]")
+    PR_NUMBER=$(echo "$PR_JSON" | jq -r '.[0].number // empty' 2>/dev/null || true)
+    if [[ -n "$PR_NUMBER" ]]; then
+        PR_BODY=$(echo "$PR_JSON" | jq -r '.[0].body // empty' 2>/dev/null || true)
+        log_info "Found release-please PR: #$PR_NUMBER"
+    else
+        log_info "No open release-please PR found"
+    fi
+else
+    log_warning "GitHub CLI not authenticated — skipping PR lookup"
+fi
+
+# Skipped commits summary
+SKIPPED_COMMITS=""
+while IFS= read -r commit_hash; do
+    if commit_should_skip "$commit_hash"; then
+        SKIPPED_COMMITS+="$(git show -s --format='%h | %s' "$commit_hash")"$'\n'
+    fi
+done < <(git rev-list --reverse "$RANGE")
+if [[ -z "$SKIPPED_COMMITS" ]]; then
+    SKIPPED_COMMITS="(none)"
+fi
+
+log_success "Context gathered"
+
+# ---------------------------------------------------------------------------
+# Build prompt
+# ---------------------------------------------------------------------------
+
+build_prompt() {
+    cat <<'PROMPT_HEADER'
+You are writing a GitHub release announcement for a Home Assistant custom integration.
+
+## YOUR AUDIENCE
+Home Assistant users — people who install custom integrations via HACS, build automations,
+and configure dashboards. They are NOT developers. They do not understand terms like:
+coordinator, entity, async, refactor, TypedDict, module, class, dataclass, config entry,
+state machine, MRO, or any Python/software engineering jargon.
+
+## WRITING RULES — FOLLOW STRICTLY
+
+**Rule 1 — No jargon.**
+NEVER use technical terms. Always rephrase as a user experience.
+  ❌ "Refactored coordinator error handling with exponential backoff"
+  ✅ "The integration now recovers more gracefully when your device is temporarily unreachable"
+
+**Rule 2 — Second person, present tense.**
+Write: "You can now...", "Your automations will...", "The setup wizard now..."
+
+**Rule 3 — Bug fixes: describe the SYMPTOM, not the cause.**
+  ❌ "Fix timezone-aware datetime comparison at resolution boundary"
+  ✅ "Fixed: Sensor data could show incorrect values when switching to/from daylight saving time"
+
+**Rule 4 — New features: lead with what the user can DO.**
+  ❌ "Add IntegrationBlueprintFanSpeedSensor with EntityDescription"
+  ✅ "New sensor shows your device's current fan speed on your dashboard"
+
+**Rule 5 — Refactoring without user impact: omit completely.**
+Only mention internal changes if they improve reliability users would notice.
+
+**Rule 6 — Combine related commits into one story.**
+Do NOT list every commit as a separate bullet. Group related changes.
+
+**Rule 7 — Imagine explaining to your neighbor.**
+Before writing each bullet, ask: "Would someone who just uses Home Assistant understand this?"
+
+## OUTPUT FORMAT
+
+Use these sections with ### (H3) headings:
+
+- ### ⚠️ Breaking Changes
+  (Changes that require user action — reconfiguration, removal of automations, etc.)
+
+- ### 🎉 What's New
+  (New sensors, config options, service actions — things users can now DO)
+
+- ### 🐛 Fixed
+  (Bugs users experienced — describe what was wrong and what is now correct)
+
+- ### ⚡ Improved
+  (Performance or reliability improvements users would notice)
+
+Skip any section that has no content.
+Do NOT include a version header — the release system adds that.
+Do NOT include commit hashes, PR numbers, or links.
+Output ONLY the markdown body, nothing else.
+
+## WHAT TO INCLUDE vs SKIP
+✅ Include: Changes to sensors/entities, bugs fixing wrong data, config/setup improvements,
+   service action changes, new platforms, dependency updates affecting functionality
+❌ Skip: CI/CD changes, dev tooling, code reorganization, test changes, documentation-only,
+   version bumps by the release system
+
+## FILE PATH GUIDE (for assessing user impact)
+- sensor/, binary_sensor/, switch/, select/, number/, button/, fan/ = Entity platforms → HIGH
+- config_flow_handler/ = Setup wizard users interact with → HIGH
+- service_actions/, services.yaml = Actions users trigger → HIGH
+- translations/ = Labels users see in the UI → MEDIUM
+- api/ = API communication (mention only if it fixes data bugs) → LOW-MEDIUM
+- coordinator/ = Data fetching (mention only if reliability changes) → LOW-MEDIUM
+- entity/, entity_utils/ = Base entity code (rarely user-visible) → LOW
+- utils/, const.py, data.py = Internal (skip unless user-facing effect) → SKIP
+- script/, .github/, docs/, tests/ = Developer-only → SKIP
+
+PROMPT_HEADER
+
+    # Dynamic context section
+    cat <<PROMPT_CONTEXT
+## SOURCE OF TRUTH
+- Primary: the final net file changes (shows what actually changed between releases)
+- Commits provide context and intent, but final state wins if they conflict
+- Revert commits mean earlier changes may be superseded
+- Commits marked as "skipped" are non-user-facing by author intent — do not mention them
+
+---
+
+## Context
+
+This is a Home Assistant custom integration called 'Integration Blueprint'.
+Domain: $DOMAIN
+Current version: $CURRENT_VERSION
+
+---
+
+## Commits with details (oldest → newest)
+
+$COMMIT_CONTEXT
+
+---
+
+## Final changed files (net state, source of truth)
+
+$FINAL_FILE_CHANGES
+
+---
+
+## Revert commits in range (chronology hints)
+
+$REVERT_COMMITS
+
+---
+
+## Commits explicitly skipped by trailer (do not mention)
+
+$SKIPPED_COMMITS
+PROMPT_CONTEXT
+
+    if [[ -n "$PR_BODY" ]]; then
+        cat <<PROMPT_RP
+
+---
+
+## Auto-generated changelog from release-please
+
+$PR_BODY
+PROMPT_RP
+    fi
+
+    cat <<PROMPT_DIFF
+
+---
+
+## Code diff for user-facing files (understand WHAT changed — translate to user language)
+
+$USER_DIFF
+
+---
+
+Output ONLY the release notes. Start directly with the first ### section.
+PROMPT_DIFF
+}
+
+# ---------------------------------------------------------------------------
+# Execute based on mode
+# ---------------------------------------------------------------------------
+
+run_copilot() {
+    local prompt_file
+    prompt_file=$(mktemp)
+    build_prompt >"$prompt_file"
+
+    log_info "Using model: $COPILOT_MODEL"
+
+    local result=0
+    "$COPILOT_BIN" --model "$COPILOT_MODEL" \
+        --allow-tool='shell(git)' \
+        --allow-tool='shell(gh)' \
+        --deny-tool='write' \
+        --deny-tool='shell(rm)' \
+        <"$prompt_file" || result=$?
+
+    rm -f "$prompt_file"
+    return "$result"
+}
+
+run_hook "release-notes" "pre"
+
+case "$MODE" in
+--interactive)
+    log_header "Launching Copilot CLI (interactive mode)"
+    mkdir -p "$SCRATCH_DIR"
+
+    CONTEXT_FILE="$SCRATCH_DIR/release-notes-context.md"
+    build_prompt >"$CONTEXT_FILE"
+    log_info "Context written to $CONTEXT_FILE"
+    log_info "Using model: $COPILOT_MODEL"
+    log_info "Starting interactive session — reference the context file above"
+    log_separator
+    echo ""
+    exec "$COPILOT_BIN" --model "$COPILOT_MODEL"
+    ;;
+
+--apply)
+    if [[ -z "$PR_NUMBER" ]]; then
+        die "No open release-please PR found. Cannot apply."
+    fi
+
+    log_header "Generating enhanced release notes"
+
+    TEMP_OUTPUT=$(mktemp)
+    if ! run_copilot >"$TEMP_OUTPUT" 2>/dev/null; then
+        rm -f "$TEMP_OUTPUT"
+        die "Copilot CLI failed — check authentication with: copilot"
+    fi
+
+    ENHANCED=$(cat "$TEMP_OUTPUT")
+    rm -f "$TEMP_OUTPUT"
+
+    if [[ -z "$ENHANCED" ]]; then
+        die "Copilot CLI returned empty output"
+    fi
+
+    log_header "Updating PR #$PR_NUMBER"
+    gh pr edit "$PR_NUMBER" --body "$ENHANCED"
+    log_success "Release notes updated on PR #$PR_NUMBER"
+    ;;
+
+stdout | "")
+    log_header "Generating enhanced release notes"
+    log_separator
+    echo ""
+    if ! run_copilot; then
+        echo "" >&2
+        die "Copilot CLI failed — check authentication with: copilot"
+    fi
+    ;;
+
+*)
+    log_error "Unknown option: $MODE"
+    echo "Usage: script/release-notes [--apply|--interactive]"
+    exit 1
+    ;;
+esac
+
+run_hook "release-notes" "post"

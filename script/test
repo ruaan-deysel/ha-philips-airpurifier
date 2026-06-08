@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# script/test: Run project tests
+#
+# Runs pytest with project configuration. Automatically cleans up package
+# installations after test run to prevent Home Assistant from loading the
+# wrong version.
+#
+# Usage:
+#   ./script/test [OPTIONS] [PYTEST_OPTIONS]
+#
+# Options:
+#   --cov           Generate coverage report (terminal output)
+#   --cov-html      Generate HTML coverage report in htmlcov/
+#
+# Examples:
+#   ./script/test
+#   ./script/test -v
+#   ./script/test --cov
+#   ./script/test --cov-html
+#   ./script/test --cov -k test_coordinator
+#   ./script/test tests/test_sensor.py
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+activate_venv
+
+# Parse coverage flags
+COVERAGE_ARGS=()
+PYTEST_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+    --cov)
+        COVERAGE_ARGS+=("--cov=custom_components/philips_airpurifier" "--cov-report=term-missing")
+        shift
+        ;;
+    --cov-html)
+        COVERAGE_ARGS+=("--cov=custom_components/philips_airpurifier" "--cov-report=html")
+        shift
+        ;;
+    *)
+        PYTEST_ARGS+=("$1")
+        shift
+        ;;
+    esac
+done
+
+# Run pytest with project configuration
+if [[ ${#COVERAGE_ARGS[@]} -gt 0 ]]; then
+    log_header "Running tests with coverage"
+else
+    log_header "Running tests"
+fi
+echo ""
+
+run_hook "test" "pre"
+echo ""
+uv run pytest "${COVERAGE_ARGS[@]}" "${PYTEST_ARGS[@]}"
+
+run_hook "test" "post"
+
+log_success "Tests completed"
+
+if [[ ${#COVERAGE_ARGS[@]} -gt 0 ]] && [[ " ${COVERAGE_ARGS[*]} " =~ " --cov-report=html " ]]; then
+    echo ""
+    log_success "Coverage report generated in htmlcov/index.html"
+fi
+
+# Clean up any accidental package installation
+"$SCRIPT_DIR/clean" --minimal

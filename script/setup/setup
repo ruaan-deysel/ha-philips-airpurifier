@@ -1,0 +1,154 @@
+#!/bin/bash
+
+# script/setup: Setup script used by DevContainers to prepare the project
+#
+# Installs optional development tools (pyright, GitHub Copilot CLI, git-cliff)
+# and configures the environment. Called automatically by DevContainer postStartCommand.
+#
+# Usage:
+#   ./script/setup/setup
+#
+# Examples:
+#   ./script/setup/setup
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+# shellcheck source=script/.lib/download.sh
+source "$SCRIPT_DIR/.lib/download.sh"
+
+# Load environment overrides in two layers (later layers win):
+#   .devcontainer/.env       — project-level defaults, committed to the repo
+#   .devcontainer/.env.local — user/machine-specific overrides, gitignored
+# bootstrap also sources these files, but as a subprocess its env changes don't propagate back.
+# Sourcing here ensures HA_INSTALL_HACS and other vars are available in this script too.
+_env_file=".devcontainer/.env"
+if [[ -f "$_env_file" ]]; then
+    # shellcheck source=/dev/null
+    source "$_env_file"
+fi
+unset _env_file
+_env_local=".devcontainer/.env.local"
+if [[ -f "$_env_local" ]]; then
+    # shellcheck source=/dev/null
+    source "$_env_local"
+fi
+unset _env_local
+
+"$SCRIPT_DIR/setup/bootstrap"
+
+ensure_command_alias() {
+    local alias_name=$1
+    local target_name=$2
+    local bin_dir="$HOME/.local/bin"
+    local target_path
+
+    if command -v "$alias_name" >/dev/null 2>&1; then
+        return
+    fi
+
+    if ! target_path=$(command -v "$target_name" 2>/dev/null); then
+        return
+    fi
+
+    mkdir -p "$bin_dir"
+    ln -sfn "$target_path" "$bin_dir/$alias_name"
+    log_step "Linking command alias: $alias_name -> $target_name"
+}
+
+ensure_workspace_binary_link() {
+    local binary_name=$1
+    local bin_dir="$HOME/.local/bin"
+    local target_path="$PWD/node_modules/.bin/$binary_name"
+
+    if [[ ! -x "$target_path" ]]; then
+        return
+    fi
+
+    mkdir -p "$bin_dir"
+    ln -sfn "$target_path" "$bin_dir/$binary_name"
+    log_step "Linking workspace binary: $binary_name"
+}
+
+log_header "Configuring AI agent tool aliases"
+ensure_command_alias "bat" "batcat"
+ensure_command_alias "fd" "fdfind"
+ensure_command_alias "fd-find" "fdfind"
+ensure_command_alias "git-delta" "delta"
+ensure_command_alias "httpie" "http"
+ensure_command_alias "ipython" "ipython3"
+ensure_command_alias "miller" "mlr"
+ensure_command_alias "ripgrep" "rg"
+ensure_workspace_binary_link "copilot"
+ensure_workspace_binary_link "pyright"
+
+if [[ -z ${VIRTUAL_ENV:-} ]]; then
+    log_header "Activating virtual environment"
+    # shellcheck source=/dev/null
+    source "$HOME/ha-venv/bin/activate"
+fi
+
+if [[ ${HA_INSTALL_HACS:-"0"} == "1" ]]; then
+    # Install HACS for testing with other custom components
+    echo ""
+    log_header "Installing HACS in dev environment"
+    log_info "This allows testing your integration alongside other HACS components"
+
+    # Ensure config directory is initialized by Home Assistant first
+    if [[ ! -f config/.HA_VERSION ]]; then
+        log_step "Initializing Home Assistant config directory"
+        hass --config "${PWD}/config" --script ensure_config >/dev/null 2>&1 || true
+    fi
+
+    # Create custom_components directory if it doesn't exist
+    mkdir -p config/custom_components
+
+    # Clean up existing HACS installation if present
+    if [[ -d config/custom_components/hacs ]]; then
+        log_step "Removing existing HACS installation"
+        rm -rf config/custom_components/hacs
+    fi
+    if [[ -L custom_components/hacs ]]; then
+        log_step "Removing existing HACS symlink"
+        rm -f custom_components/hacs
+    fi
+
+    # Download and extract HACS (stable release ZIP)
+    cd config/custom_components
+    log_step "Downloading HACS"
+    if _download \
+        https://github.com/hacs/integration/releases/latest/download/hacs.zip \
+        hacs.zip &&
+        unzip -q hacs.zip -d hacs &&
+        rm hacs.zip; then
+        cd ../..
+
+        # Install HACS Python dependencies
+        log_step "Installing HACS Python dependencies"
+        if uv pip install -q 'aiogithubapi>=22.10.1'; then
+            "$SCRIPT_DIR/setup/sync-hacs"
+            log_success "HACS installed successfully"
+            log_info "Location: ${BOLD}config/custom_components/hacs/${NC}"
+            log_info "Version: Stable release (no auto-updates)"
+        else
+            log_warning "Failed to install HACS Python dependencies"
+            log_info "You can install manually: ${BOLD}uv pip install 'aiogithubapi>=22.10.1'${NC}"
+        fi
+    else
+        log_warning "HACS installation failed"
+        log_info "You can install manually:"
+        log_step "${BOLD}cd config/custom_components${NC}"
+        log_step "${BOLD}curl -fsSL https://github.com/hacs/integration/releases/latest/download/hacs.zip -o hacs.zip${NC}"
+        log_step "${BOLD}unzip hacs.zip -d hacs && rm hacs.zip${NC}"
+        cd ../..
+    fi
+fi
+
+run_hook "setup/setup" "post"
+
+echo ""
+log_success "Project setup complete"

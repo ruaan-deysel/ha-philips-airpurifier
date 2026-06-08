@@ -45,11 +45,13 @@ Your goal is to diagnose and fix issues with the data update coordinator.
 
 1. **Enable Debug Logging:**
    - Add/verify in `config/configuration.yaml`:
+
      ```yaml
      logger:
        logs:
          custom_components.ha_integration_domain: debug
      ```
+
    - Restart Home Assistant: `./script/develop`
 
 2. **Check Logs:**

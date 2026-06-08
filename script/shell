@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# script/shell: Format shell scripts with shfmt
+#
+# Runs shfmt to auto-format all shell scripts under script/ and .devcontainer/.
+# Uses 4-space indentation to match the project style. Does not run shellcheck
+# (static analysis only, no auto-fix available) — use script/shell-check for that.
+#
+# Usage:
+#   ./script/shell
+#
+# Examples:
+#   ./script/shell
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+run_hook "shell" "pre"
+
+log_header "Running shfmt"
+find script/ .devcontainer/ -not -path "script/hooks/*" -not -path ".devcontainer/hooks/*" -not -name "Dockerfile" -type f \( -name "*.sh" -o ! -name "*.*" \) -print0 | xargs -0 shfmt -i 4 -w
+
+run_hook "shell" "post"
+log_success "Shell formatting completed"

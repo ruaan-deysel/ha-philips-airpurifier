@@ -31,14 +31,14 @@ applyTo: "**/*.py"
 
 **Example structure:**
 
-```
+````text
 sensor/
   __init__.py          # Setup and entity list (50 lines)
   air_quality.py       # Air quality sensor class (200 lines)
   temperature.py       # Temperature sensor class (150 lines)
   diagnostic.py        # Diagnostic sensors (180 lines)
   const.py             # Sensor-specific constants (30 lines)
-```
+```text
 
 **Naming:**
 
@@ -183,7 +183,7 @@ See [Integration Setup Failures](https://developers.home-assistant.io/docs/integ
 
 ## Error Handling
 
-**Use specific exceptions from integration's exception module**
+#### Use specific exceptions from integration's exception module
 
 **Logging levels:**
 
@@ -219,7 +219,7 @@ from custom_components.ha_integration_domain.sensor import async_setup_entry
 async def test_sensor_setup(hass, config_entry, coordinator):
     """Test sensor platform setup."""
     # Test implementation
-```
+```text
 
 ## Common Patterns
 
@@ -250,3 +250,4 @@ Home Assistant APIs evolve - Always verify current patterns:
 - [Home Assistant Developer Docs](https://developers.home-assistant.io/)
 - [Developer Blog](https://developers.home-assistant.io/blog/) for deprecations/changes
 - Search: `site:developers.home-assistant.io [feature type]`
+````

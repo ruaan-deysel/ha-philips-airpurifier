@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
-from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_HOST, CONF_NAME, __version__ as HA_VERSION
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er, redact as redact_helper
 from homeassistant.util import dt as dt_util
 
 from .const import CONF_DEVICE_ID, CONF_MODEL, CONF_STATUS, DOMAIN
@@ -114,4 +113,7 @@ async def async_get_config_entry_diagnostics(
             "sw_version": device_entry.sw_version,
         }
 
-    return async_redact_data(diagnostics_data, TO_REDACT)
+    return cast(
+        dict[str, Any],
+        redact_helper.async_redact_data(diagnostics_data, TO_REDACT),  # pyright: ignore[reportUnknownMemberType]
+    )

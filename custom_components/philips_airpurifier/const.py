@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.number import NumberDeviceClass
 from homeassistant.components.sensor import (
@@ -516,6 +516,57 @@ class PhilipsApi:
     }
 
 
+def _to_celsius_from_tenths(value: Any, _: dict[str, Any]) -> float:
+    """Convert tenths-of-degree values to Celsius."""
+    if isinstance(value, (int, float)):
+        return float(value / 10)
+    return 0.0
+
+
+def _water_level_value(value: Any, status: dict[str, Any]) -> int:
+    """Return water level while honoring known device error codes."""
+    error_code = status.get("err")
+    if isinstance(error_code, int) and error_code in {32768, 49408}:
+        return 0
+    if isinstance(value, (int, float)):
+        return int(value)
+    return 0
+
+
+def _runtime_hours(value: Any, _: dict[str, Any]) -> float | None:
+    """Convert runtime milliseconds to hours."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(round(value / 3600000, 2))
+    return None
+
+
+def _water_tank_from_error(value: Any) -> bool:
+    """Return water tank availability from error bitmask."""
+    error_code = value if isinstance(value, int) else 0
+    return bool(not error_code & (1 << 8))
+
+
+def _humidification_enabled(value: Any) -> bool:
+    """Return whether humidification is enabled for gen1 keys."""
+    return value == "PH"
+
+
+def _humidification_enabled_new2(value: Any) -> bool:
+    """Return whether humidification is enabled for gen2 keys."""
+    return value == 4
+
+
+def _ac3420_water_tank_present(status: dict[str, Any]) -> bool:
+    """Compute AC3420 water tank state from status values."""
+    d0310a = status.get("D0310A")
+    d03240 = status.get("D03240")
+    mode_value = d0310a if isinstance(d0310a, int) else 0
+    level_value = d03240 if isinstance(d03240, int) else 0
+    return mode_value == 16 and level_value == 0
+
+
 SENSOR_TYPES: dict[str, SensorDescription] = {
     # device sensors
     # NOTE: removed AQI as this turns out not to be a sensor, but a setting of the mobile app
@@ -612,7 +663,7 @@ SENSOR_TYPES: dict[str, SensorDescription] = {
             23: "mdi:thermometer-high",
         },
         FanAttributes.LABEL: ATTR_TEMPERATURE,
-        FanAttributes.VALUE: lambda value, _: float(value / 10) if value else 0,
+        FanAttributes.VALUE: _to_celsius_from_tenths,
         ATTR_STATE_CLASS: SensorStateClass.MEASUREMENT,
         FanAttributes.UNIT: UnitOfTemperature.CELSIUS,
     },
@@ -620,7 +671,7 @@ SENSOR_TYPES: dict[str, SensorDescription] = {
     PhilipsApi.WATER_LEVEL: {
         FanAttributes.ICON_MAP: {0: "mdi:water-alert", 10: "mdi:water"},
         FanAttributes.LABEL: FanAttributes.WATER_LEVEL,
-        FanAttributes.VALUE: lambda value, status: int(0 if status.get("err") in [32768, 49408] else value or 0),
+        FanAttributes.VALUE: _water_level_value,
         ATTR_STATE_CLASS: SensorStateClass.MEASUREMENT,
         FanAttributes.UNIT: PERCENTAGE,
         CONF_ENTITY_CATEGORY: EntityCategory.DIAGNOSTIC,
@@ -643,7 +694,7 @@ SENSOR_TYPES: dict[str, SensorDescription] = {
     PhilipsApi.RUNTIME: {
         FanAttributes.ICON_MAP: {0: "mdi:timer"},
         FanAttributes.LABEL: FanAttributes.RUNTIME,
-        FanAttributes.VALUE: lambda value, _: None if value is None else float(round(value / 3600000, 2)),
+        FanAttributes.VALUE: _runtime_hours,
         ATTR_STATE_CLASS: SensorStateClass.TOTAL,
         ATTR_DEVICE_CLASS: SensorDeviceClass.DURATION,
         FanAttributes.UNIT: UnitOfTime.HOURS,
@@ -660,33 +711,31 @@ BINARY_SENSOR_TYPES: dict[str, SensorDescription] = {
         # test for out of water error, which is in bit 9 of the error number
         FanAttributes.LABEL: FanAttributes.WATER_TANK,
         ATTR_DEVICE_CLASS: SensorDeviceClass.MOISTURE,
-        FanAttributes.VALUE: lambda value: bool(not (value or 0) & (1 << 8)),
+        FanAttributes.VALUE: _water_tank_from_error,
         CONF_ENTITY_CATEGORY: EntityCategory.DIAGNOSTIC,
     },
     PhilipsApi.NEW2_ERROR_CODE: {
         # test for out of water error, which is in bit 9 of the error number
         FanAttributes.LABEL: FanAttributes.WATER_TANK,
         ATTR_DEVICE_CLASS: SensorDeviceClass.MOISTURE,
-        FanAttributes.VALUE: lambda value: bool(not (value or 0) & (1 << 8)),
+        FanAttributes.VALUE: _water_tank_from_error,
         CONF_ENTITY_CATEGORY: EntityCategory.DIAGNOSTIC,
     },
     PhilipsApi.FUNCTION: {
         # test if the water container is available and thus humidification switched on
         FanAttributes.LABEL: FanAttributes.HUMIDIFICATION,
-        FanAttributes.VALUE: lambda value: bool(value == "PH"),
+        FanAttributes.VALUE: _humidification_enabled,
     },
     PhilipsApi.NEW2_MODE_A: {
         # test if the water container is available and thus humidification switched on
         FanAttributes.LABEL: FanAttributes.HUMIDIFICATION,
-        FanAttributes.VALUE: lambda value: bool(value == 4),
+        FanAttributes.VALUE: _humidification_enabled_new2,
     },
     "AC3420_WATER_LEVEL": {
         # AC3420 specific water level detection using D0310A and D03240
         FanAttributes.LABEL: FanAttributes.WATER_TANK,
         ATTR_DEVICE_CLASS: SensorDeviceClass.MOISTURE,
-        FanAttributes.VALUE: lambda status: bool(
-            (status.get("D0310A") or 0) == 16 and (status.get("D03240") or 0) == 0
-        ),
+        FanAttributes.VALUE: _ac3420_water_tank_present,
         CONF_ENTITY_CATEGORY: EntityCategory.DIAGNOSTIC,
     },
 }

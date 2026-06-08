@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# script/markdown: Format and lint Markdown files
+#
+# Runs Prettier (formatter) and markdownlint-cli2 (linter) with auto-fix enabled.
+# Applies fixes where available; reports remaining issues in its output.
+# Useful for targeted formatting and linting after Markdown changes.
+#
+# Usage:
+#   ./script/markdown
+#
+# Examples:
+#   ./script/markdown
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+NPM_BIN="./node_modules/.bin"
+if [[ ! -x "$NPM_BIN/prettier" || ! -x "$NPM_BIN/markdownlint-cli2" ]]; then
+    die "Node.js dependencies not installed. Run: npm install"
+fi
+
+run_hook "markdown" "pre"
+
+log_header "Formatting Markdown with Prettier"
+"$NPM_BIN/prettier" --write --no-error-on-unmatched-pattern "*.md" "docs/**/*.md" ".github/**/*.md"
+
+log_header "Linting Markdown with markdownlint-cli2"
+"$NPM_BIN/markdownlint-cli2" --fix "*.md" "docs/**/*.md" ".github/**/*.md"
+
+run_hook "markdown" "post"
+log_success "Markdown formatting completed"

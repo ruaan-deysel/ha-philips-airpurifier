@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# script/version: Display or validate the current integration version
+#
+# Reads the canonical version from manifest.json and optionally validates
+# it against the release-please manifest.
+#
+# Usage:
+#   ./script/version [--tag|--check]
+#
+# Examples:
+#   ./script/version          # Print: 0.1.0
+#   ./script/version --tag    # Print: v0.1.0
+#   ./script/version --check  # Validate manifest.json matches release-please manifest
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+MANIFEST="custom_components/ha_integration_domain/manifest.json"
+RP_MANIFEST=".release-please-manifest.json"
+
+require_command jq "apt-get install jq"
+
+get_version() {
+    jq -r '.version' "$MANIFEST"
+}
+
+run_hook "version" "pre"
+
+case "${1:-}" in
+--tag)
+    echo "v$(get_version)"
+    ;;
+--check)
+    manifest_version=$(get_version)
+    if [[ ! -f "$RP_MANIFEST" ]]; then
+        log_warning "release-please manifest not found: $RP_MANIFEST"
+        log_info "Current version: $manifest_version"
+        exit 0
+    fi
+    rp_version=$(jq -r '.["."]' "$RP_MANIFEST")
+    if [[ "$manifest_version" == "$rp_version" ]]; then
+        log_success "Versions match: $manifest_version"
+    else
+        log_error "Version mismatch!"
+        log_step "manifest.json:              $manifest_version"
+        log_step ".release-please-manifest:   $rp_version"
+        exit 1
+    fi
+    ;;
+"")
+    get_version
+    ;;
+*)
+    log_error "Unknown option: $1"
+    echo "Usage: script/version [--tag|--check]"
+    exit 1
+    ;;
+esac
+
+run_hook "version" "post"

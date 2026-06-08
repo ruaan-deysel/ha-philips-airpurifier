@@ -213,7 +213,7 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle initial step of user config flow."""
-        errors = {}
+        errors: dict[str, str] = {}
         config_entry_data = user_input
 
         # user input was provided, so check and save it

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import ATTR_DEVICE_CLASS, CONF_ENTITY_CATEGORY, EntityCategory
@@ -113,7 +113,8 @@ class PhilipsSelect(PhilipsAirPurifierEntity, SelectEntity):
         self._attr_translation_key = self._description.get(FanAttributes.LABEL)
         self._attr_entity_category = self._description.get(CONF_ENTITY_CATEGORY)
 
-        self._options = self._description.get(OPTIONS)
+        raw_options = self._description.get(OPTIONS)
+        self._options: dict[Any, str] = raw_options if isinstance(raw_options, dict) else {}
         self._attr_options = list(self._options.values())
 
         self._attr_unique_id = f"{coordinator.model}-{coordinator.device_id}-{kind.lower()}"
@@ -123,7 +124,8 @@ class PhilipsSelect(PhilipsAirPurifierEntity, SelectEntity):
     def current_option(self) -> str:
         """Return the currently selected option."""
         option = self._device_status.get(self.kind)
-        current_option = str(self._options.get(option))
+        selected_option = self._options.get(option)
+        current_option = str(option) if selected_option is None else selected_option
         _LOGGER.debug("option: %s, returning as current_option: %s", option, current_option)
         return current_option
 

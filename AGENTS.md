@@ -160,7 +160,7 @@ As an AI agent, **aim for Silver or Gold Quality Scale** when generating code:
 
 **Validation:** Run `script/check` before committing (runs type-check + lint + spell)
 
-**hassfest validation:** Run `scripts/hassfest` to validate against Home Assistant standards
+**hassfest validation:** Run `script/hassfest` to validate against Home Assistant standards
 
 - Validates manifest.json, translations, services.yaml, and integration structure
 - Uses official Home Assistant Core validation scripts locally

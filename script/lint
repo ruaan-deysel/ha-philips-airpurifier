@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# script/lint: Format and lint all file types
+#
+# Orchestrates formatting and linting across all languages:
+# Python (Ruff), YAML (yamllint), Shell (shfmt + shellcheck), Markdown (Prettier + markdownlint-cli2),
+# Spelling (codespell). Applies auto-fixes where available.
+#
+# Usage:
+#   ./script/lint
+#
+# For targeted language-specific formatting:
+#   ./script/python      Python only    (Ruff format + fix)
+#   ./script/shell       Shell only     (shfmt)
+#   ./script/spell       Spelling       (codespell --write-changes)
+#   ./script/markdown    Markdown only  (Prettier + markdownlint-cli2 --fix)
+#
+# Examples:
+#   ./script/lint
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+activate_venv
+
+run_hook "lint" "pre"
+
+"$SCRIPT_DIR/python"
+echo ""
+"$SCRIPT_DIR/yaml-check"
+echo ""
+"$SCRIPT_DIR/shell"
+echo ""
+"$SCRIPT_DIR/shell-check"
+echo ""
+"$SCRIPT_DIR/markdown"
+
+run_hook "lint" "post"
+
+log_success "Linting completed"

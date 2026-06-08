@@ -2,15 +2,21 @@
 
 set -e
 
-cd "$(dirname "$0")/.."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
 
-# Check for --deep flag
+# Check for flags
 DEEP_CLEAN=false
-if [[ "$1" == "--deep" ]]; then
+MINIMAL_CLEAN=false
+if [[ "${1:-}" == "--deep" ]]; then
     DEEP_CLEAN=true
+elif [[ "${1:-}" == "--minimal" ]]; then
+    MINIMAL_CLEAN=true
 fi
 
-echo "🧹 Cleaning cache..."
+if [[ "$MINIMAL_CLEAN" != true ]]; then
+    echo "🧹 Cleaning cache..."
+fi
 
 # Remove Python cache directories
 find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
@@ -19,7 +25,7 @@ find . -type d -name .ruff_cache -exec rm -rf {} + 2>/dev/null || true
 find . -type d -name .mypy_cache -exec rm -rf {} + 2>/dev/null || true
 find . -type d -name ".pytype" -exec rm -rf {} + 2>/dev/null || true
 
-# Remove Python egg-info directories
+# Remove Python egg-info directories (accidental package installations)
 find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 
 # Remove pytest coverage reports
@@ -38,4 +44,6 @@ if [[ "$DEEP_CLEAN" == true ]]; then
     rm -rf build/ dist/ 2>/dev/null || true
 fi
 
-echo "✅ Cache cleaned!"
+if [[ "$MINIMAL_CLEAN" != true ]]; then
+    echo "✅ Cache cleaned!"
+fi

@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+# script/hassfest: Run Home Assistant hassfest validation for this integration
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
+
+HA_CORE_DIR="${HA_CORE_DIR:-.local/ha-core}"
+HA_CORE_REPO="https://github.com/home-assistant/core.git"
+INTEGRATION_PATH="custom_components/philips_airpurifier"
+SKIP_PLUGINS="quality_scale,requirements"
+UPDATE_CORE=false
+
+if command -v python3 >/dev/null 2>&1; then
+    HA_VERSION_TAG="$(python3 -c "from homeassistant.const import __version__; print(__version__)" 2>/dev/null || true)"
+else
+    echo "python3 is required to run hassfest" >&2
+    exit 1
+fi
+
+if [[ -z "$HA_VERSION_TAG" ]]; then
+    echo "Home Assistant is not installed in this environment. Run ./script/setup first." >&2
+    exit 1
+fi
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --update)
+        UPDATE_CORE=true
+        shift
+        ;;
+    --skip-plugins)
+        SKIP_PLUGINS="$2"
+        shift 2
+        ;;
+    *)
+        break
+        ;;
+    esac
+done
+
+if [[ ! -d "$HA_CORE_DIR/.git" ]]; then
+    rm -rf "$HA_CORE_DIR"
+    mkdir -p "$HA_CORE_DIR"
+    git -C "$HA_CORE_DIR" init >/dev/null 2>&1
+    git -C "$HA_CORE_DIR" remote add origin "$HA_CORE_REPO"
+    git -C "$HA_CORE_DIR" config core.sparseCheckout true
+    mkdir -p "$HA_CORE_DIR/.git/info"
+    {
+        echo "script/"
+        echo "homeassistant/"
+    } >"$HA_CORE_DIR/.git/info/sparse-checkout"
+    git -C "$HA_CORE_DIR" fetch --depth 1 --filter=blob:none origin "refs/tags/$HA_VERSION_TAG:refs/tags/$HA_VERSION_TAG"
+    git -C "$HA_CORE_DIR" checkout "$HA_VERSION_TAG" >/dev/null 2>&1
+else
+    CURRENT_VERSION="$(git -C "$HA_CORE_DIR" describe --tags --exact-match 2>/dev/null || true)"
+    if [[ "$UPDATE_CORE" == true || "$CURRENT_VERSION" != "$HA_VERSION_TAG" ]]; then
+        git -C "$HA_CORE_DIR" fetch --depth 1 --filter=blob:none origin "refs/tags/$HA_VERSION_TAG:refs/tags/$HA_VERSION_TAG"
+        git -C "$HA_CORE_DIR" checkout "$HA_VERSION_TAG" >/dev/null 2>&1
+    fi
+fi
+
+HA_CORE_ABS="$(cd "$HA_CORE_DIR" && pwd)"
+export PYTHONPATH="$HA_CORE_ABS:${PYTHONPATH:-}"
+
+python3 -m script.hassfest \
+    --action validate \
+    --integration-path "$REPO_ROOT/$INTEGRATION_PATH" \
+    --skip-plugins "$SKIP_PLUGINS" \
+    "$@"

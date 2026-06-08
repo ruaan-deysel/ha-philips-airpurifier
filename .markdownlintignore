@@ -1,0 +1,4 @@
+# Markdown linting ignores — keep in sync with .prettierignore
+node_modules/**
+config/**
+.local/**

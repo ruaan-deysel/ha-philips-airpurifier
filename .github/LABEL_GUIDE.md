@@ -92,19 +92,19 @@ This document describes the label system for the ha-philips-airpurifier reposito
 
 ### Device Support Request Example:
 
-```
+```text
 Labels: device-support, enhancement, device: air-purifier, priority: medium, status: needs-data
 ```
 
 ### Bug Report Example:
 
-```
+```text
 Labels: bug, component: connectivity, device: combo, priority: high, status: in-progress
 ```
 
 ### Feature Request Example:
 
-```
+```text
 Labels: enhancement, component: services, priority: low, status: testing
 ```
 

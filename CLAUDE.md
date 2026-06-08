@@ -9,10 +9,10 @@ Home Assistant custom integration for Philips Air Purifiers using CoAP protocol.
 ## Commands
 
 ```bash
-scripts/setup          # Install deps with uv, set up pre-commit hooks
-scripts/lint           # Format and lint with ruff (auto-fix)
-scripts/test           # Run pytest test suite: uv run pytest tests/
-scripts/develop        # Run Home Assistant with integration loaded (debug mode)
+script/setup           # Install deps with uv, set up pre-commit hooks
+script/lint            # Format and lint with ruff (auto-fix)
+script/test            # Run pytest test suite: uv run pytest tests/
+script/develop         # Run Home Assistant with integration loaded (debug mode)
 
 # Individual commands
 uv run ruff format .                          # Format only

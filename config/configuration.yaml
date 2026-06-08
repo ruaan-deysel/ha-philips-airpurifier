@@ -1,5 +1,19 @@
-# https://www.home-assistant.io/integrations/default_config/
-default_config:
+# Explicit core integrations for local development.
+# This intentionally avoids problematic defaults that pulled in `usb`,
+# `bluetooth`, and `go2rtc` on this environment.
+frontend:
+config:
+history:
+logbook:
+map:
+sun:
+conversation:
+media_source:
+my:
+zeroconf:
+dhcp:
+ssdp:
+stream:
 
 # https://www.home-assistant.io/integrations/homeassistant/
 homeassistant:

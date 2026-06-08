@@ -12,7 +12,7 @@
     "style": "fenced"
   },
   "emphasis-style": {
-    "style": "asterisk"
+    "style": "consistent"
   },
   "strong-style": {
     "style": "asterisk"

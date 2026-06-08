@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# script/ha-version-sync: Validate HA release-train consistency across all version sources
+#
+# Checks that pytest-homeassistant-custom-component (requirements_test.txt),
+# the homeassistant minimum in hacs.json, and HA_VERSION in .devcontainer/.env
+# (when explicitly set) all target the same Home Assistant release train (YYYY.M).
+#
+# Exits non-zero when a mismatch is detected so that pre-commit and CI jobs can
+# surface the inconsistency before it reaches the main branch.
+#
+# Usage:
+#   ./script/ha-version-sync
+#
+# Called automatically by the pre-commit ha-version-sync hook and the
+# ha-version-sync-check GitHub Actions workflow.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+python3 <<'PY'
+from __future__ import annotations
+
+import json
+import re
+import sys
+import urllib.request
+from pathlib import Path
+
+
+def fail(msg: str) -> None:
+    print(f"ERROR: {msg}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def release_train(version: str) -> str:
+    """Return YYYY.M from any HA version string (stable, pre-release, or train-only)."""
+    parts = version.split(".")
+    return f"{parts[0]}.{parts[1]}" if len(parts) >= 2 else version  # noqa: SIM210
+
+
+# ── pytest-homeassistant-custom-component ───────────────────────────────────
+req_text = Path("requirements_test.txt").read_text(encoding="utf-8")
+m = re.search(r"^pytest-homeassistant-custom-component==([^\s#]+)", req_text, re.MULTILINE)
+if not m:
+    fail("pytest-homeassistant-custom-component pin not found in requirements_test.txt")
+pkg_version = m.group(1)
+
+with urllib.request.urlopen(
+    f"https://pypi.org/pypi/pytest-homeassistant-custom-component/{pkg_version}/json",
+    timeout=15,
+) as resp:
+    pypi = json.loads(resp.read().decode("utf-8"))
+
+ha_req = next(
+    (r for r in (pypi.get("info", {}).get("requires_dist") or []) if r.startswith("homeassistant==")),
+    None,
+)
+if ha_req is None:
+    fail(f"Could not determine HA dependency for pytest-homeassistant-custom-component=={pkg_version}")
+pytest_ha = ha_req.split("==", 1)[1].strip()
+pytest_train = release_train(pytest_ha)
+
+# ── hacs.json ────────────────────────────────────────────────────────────────
+hacs = json.loads(Path("hacs.json").read_text(encoding="utf-8"))
+hacs_ha = str(hacs.get("homeassistant", "")).strip()
+if not hacs_ha:
+    fail("hacs.json does not contain a valid 'homeassistant' value")
+hacs_train = release_train(hacs_ha)
+
+# ── HA_VERSION from .devcontainer/.env (project-level, committed) ─────────────
+# .env.local is intentionally excluded: it is gitignored and cannot be checked
+# consistently across all environments (local dev, CI, pre-commit).
+# Symbolic values ("latest", "beta") cannot be resolved to a fixed train without
+# a full PyPI lookup, so they are skipped — they represent intentional "run ahead"
+# scenarios that do not require the other sources to be updated.
+env_ha: str | None = None
+env_file = Path(".devcontainer/.env")
+if env_file.exists():
+    em = re.search(r"^HA_VERSION\s*=\s*([^\s#]+)", env_file.read_text(encoding="utf-8"), re.MULTILINE)
+    if em:
+        v = em.group(1).strip()
+        if v not in ("latest", "beta"):
+            env_ha = v
+
+# ── Compare all sources ───────────────────────────────────────────────────────
+# Map: display-name → (full version, release train)
+sources: dict[str, tuple[str, str]] = {
+    f"pytest-homeassistant-custom-component=={pkg_version}": (pytest_ha, pytest_train),
+    "hacs.json homeassistant": (hacs_ha, hacs_train),
+}
+if env_ha is not None:
+    sources[".devcontainer/.env HA_VERSION"] = (env_ha, release_train(env_ha))
+
+unique_trains = {t for _, t in sources.values()}
+if len(unique_trains) > 1:
+    lines = "\n".join(f"  {name}: {ver} (train {t})" for name, (ver, t) in sources.items())
+    print(
+        f"HA version sync FAILED — release train mismatch:\n{lines}\n\n"
+        "Update hacs.json, requirements_test.txt, and .devcontainer/.env together.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+print("HA version sync OK:")
+for name, (ver, t) in sources.items():
+    print(f"  {name}: {ver} (train {t})")
+PY

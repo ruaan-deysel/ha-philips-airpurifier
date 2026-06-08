@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# script/spell: Run spell checking with codespell
+#
+# Runs codespell with write-changes enabled to automatically fix common typos.
+# Only checks Python, Markdown, and RST files in custom_components and documentation.
+#
+# Usage:
+#   ./script/spell
+#
+# Examples:
+#   ./script/spell
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+activate_venv
+
+run_hook "spell" "pre"
+
+log_header "Running codespell with auto-fix"
+codespell \
+    --write-changes \
+    --ignore-words-list=aiport,astroid,checkin,currenty,hass,iif,incomfort,lookin,nam,NotIn \
+    --skip="./.*,*.csv,*.json,*.ambr,uv.lock" \
+    --quiet-level=2 \
+    custom_components/ \
+    README.md \
+    CONTRIBUTING.md \
+    DEPENDENCIES.md \
+    script/ \
+    tests/ 2>&1 || true
+
+# Clean up any accidental package installation from uv run
+"$SCRIPT_DIR/clean" --minimal
+
+run_hook "spell" "post"
+log_success "Spell checking completed"

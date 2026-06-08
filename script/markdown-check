@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# script/markdown-check: Check Markdown files for formatting and lint issues without making changes
+#
+# Runs Prettier in check-only mode and markdownlint-cli2 without auto-fix.
+# No files are modified. Useful for CI/CD and targeted validation after Markdown changes.
+#
+# Usage:
+#   ./script/markdown-check
+#
+# Examples:
+#   ./script/markdown-check
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+NPM_BIN="./node_modules/.bin"
+if [[ ! -x "$NPM_BIN/prettier" || ! -x "$NPM_BIN/markdownlint-cli2" ]]; then
+    die "Node.js dependencies not installed. Run: npm install"
+fi
+
+run_hook "markdown-check" "pre"
+
+log_header "Checking Markdown format (Prettier)"
+"$NPM_BIN/prettier" --check --no-error-on-unmatched-pattern "*.md" "docs/**/*.md" ".github/**/*.md"
+
+log_header "Checking Markdown lint (markdownlint-cli2)"
+"$NPM_BIN/markdownlint-cli2" "*.md" "docs/**/*.md" ".github/**/*.md"
+
+run_hook "markdown-check" "post"
+log_success "Markdown check completed"

@@ -132,35 +132,39 @@ Create a new ADR in `docs/development/adr/NNNN-title-of-decision.md`:
 - YYYY-MM-DD: Initial decision (Status: Accepted)
 - [Future updates go here]
 
-````
-
+````markdown
 ## Common ADR Topics for HA Integrations
 
 ### Data Management
+
 - Coordinator vs direct API calls
 - Caching strategy
 - State update frequency
 - Data structure in `hass.data`
 
 ### Entity Design
+
 - Entity platform choices (sensor vs binary_sensor)
 - Device vs device-less entities
 - Attribute structure
 - Unique ID generation
 
 ### Config Flow
+
 - Multi-step vs single-step setup
 - Subentry pattern usage
 - Options flow organization
 - Migration strategy
 
 ### API Integration
+
 - Authentication approach
 - Error handling strategy
 - Rate limiting approach
 - Polling vs push updates
 
 ### Architecture
+
 - Single device vs multi-device support
 - Service implementation location
 - Diagnostic data structure
@@ -193,21 +197,25 @@ Create a new ADR in `docs/development/adr/NNNN-title-of-decision.md`:
 ## Guidelines
 
 **Be specific:**
+
 - Use concrete examples from this integration
 - Reference actual file paths and class names
 - Include code snippets when helpful
 
 **Be honest:**
+
 - Document downsides of chosen approach
 - Explain what we're giving up
 - Note future reconsideration triggers
 
 **Be concise:**
+
 - Focus on the decision, not implementation details
 - Link to code rather than duplicating it
 - Keep it readable in 5-10 minutes
 
 **Make it actionable:**
+
 - Clear next steps
 - Testable success criteria
 - Migration path if breaking change
@@ -224,6 +232,7 @@ Reference existing architecture documentation and ensure the ADR complements it 
 ## Output
 
 After creating the ADR:
+
 1. Ask if content needs adjustment
 2. Suggest adding reference to `docs/development/DECISIONS.md` if it exists
 3. Suggest relevant code locations for implementation

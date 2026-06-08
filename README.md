@@ -25,7 +25,7 @@
 
 A comprehensive **Local Push** integration for Philips air purifiers and humidifiers in Home Assistant. This integration provides complete control over your Philips air quality devices using the encrypted CoAP protocol for local communication.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Features](#-features)
 - [Important Notice](#️-important-notice)
@@ -40,7 +40,7 @@ A comprehensive **Local Push** integration for Philips air purifiers and humidif
 - [Credits](#-credits)
 - [License](#-license)
 
-## ✨ Features
+## Features
 
 - **Local Control**: Direct communication with your device without cloud dependency
 - **Auto-Discovery**: Automatic detection of compatible devices on your network
@@ -62,11 +62,11 @@ Due to firmware limitations in Philips devices, this integration may experience 
 
 This integration includes automatic reconnection attempts, but they may not always succeed. These issues are inherent to the device firmware and cannot be resolved at the integration level.
 
-**Background**: This integration is based on reverse engineering work by [@rgerganov](https://github.com/rgerganov). Read more about the technical details [here](https://xakcop.com/post/ctrl-air-purifier/).
+**Background**: This integration is based on reverse engineering work by [@rgerganov](https://github.com/rgerganov). Read more about the [technical details](https://xakcop.com/post/ctrl-air-purifier/).
 
 > **Note**: Philips has introduced a cloud-based API that works with Google Home and Alexa, but it's not publicly available for local integrations.
 
-## 🚀 Installation
+## Installation
 
 ### HACS Installation (Recommended)
 
@@ -85,7 +85,7 @@ This integration includes automatic reconnection attempts, but they may not alwa
 3. **Restart**: Restart Home Assistant
 4. **Configure**: Follow the [Configuration](#️-configuration) steps below
 
-## ⚙️ Configuration
+## Configuration
 
 ### Prerequisites
 
@@ -127,7 +127,7 @@ If your device changes IP addresses:
 - **With Auto-discovery**: The integration will automatically detect and update the IP address
 - **Manual Setup**: Add the device again with the new IP address - Home Assistant will recognize it's the same device and update the configuration
 
-## 📱 Supported Devices
+## Supported Devices
 
 > **⚠️ Firmware Compatibility Warning**: Some newer firmware versions may disable local CoAP communication. If purchasing a device specifically for Home Assistant integration, ensure you can return it if the integration doesn't work.
 
@@ -197,7 +197,7 @@ If your device changes IP addresses:
 - AMF series are dedicated 2-in-1 air purifier and humidifier devices
 - CX and HU series are dedicated humidifiers
 
-## 🔧 Available Entities
+## Available Entities
 
 This integration provides comprehensive control through various Home Assistant entity types:
 
@@ -243,7 +243,7 @@ The fan entity includes additional attributes with device information:
 | `preferred_index`  | Air quality index type | "PM2.5", "IAI"                     |
 | `runtime`          | Device uptime          | "9 days, 10:44:41"                 |
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 ### Debug Logging
 
@@ -302,11 +302,11 @@ aioairctrl --host $DEVICE_IP status --json
 deactivate  # Exit virtual environment
 ```
 
-## 🎨 Entity Icons
+## Entity Icons
 
 Entity icons are defined using Home Assistant `icons.json` with Material Design Icons (`mdi:`) values.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Here's how you can help:
 
@@ -344,7 +344,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-## 🙏 Credits
+## Credits
 
 This integration builds upon the excellent work of many contributors:
 
@@ -356,7 +356,7 @@ This integration builds upon the excellent work of many contributors:
 - **[@shexbeer](https://github.com/shexbeer)**: Device support and testing
 - **[@thomasloven](https://github.com/thomasloven)**: Custom icon implementation
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](./custom_components/philips_airpurifier/LICENSE.txt) file for details.
 

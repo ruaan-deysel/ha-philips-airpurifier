@@ -238,7 +238,7 @@ async def async_setup_service_action(hass: HomeAssistant) -> None:
     )
 ```
 
-**Option B: Entity-targeted service action**
+#### Option B: Entity-targeted service action
 
 ```python
 async def async_handle_entity_service_action(entity, call: ServiceCall) -> None:

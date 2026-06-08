@@ -48,11 +48,11 @@ These files use `applyTo` globs to indicate which file types they cover:
 ## Commands
 
 ```bash
-scripts/setup          # Install deps with uv, set up pre-commit hooks
-scripts/lint           # Format and lint with ruff (auto-fix)
-scripts/test           # Run pytest test suite
-scripts/develop        # Run Home Assistant with integration loaded
-scripts/check          # Full validation (type + lint + spell)
+script/setup           # Install deps with uv, set up pre-commit hooks
+script/lint            # Format and lint with ruff (auto-fix)
+script/test            # Run pytest test suite
+script/develop         # Run Home Assistant with integration loaded
+script/check           # Full validation (type + lint + spell)
 ```
 
 Start with `AGENTS.md` for comprehensive guidance on all project conventions.

@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# script/lint-check: Check all file types for linting issues without making changes
+#
+# Orchestrates check-only validation across all languages:
+# Python (Ruff), YAML (yamllint), Shell (shfmt -d + shellcheck), Markdown (Prettier + markdownlint-cli2).
+# No files are modified.
+#
+# Usage:
+#   ./script/lint-check
+#
+# For targeted language-specific checks:
+#   ./script/python-check     Python only   (Ruff format --check + ruff check)
+#   ./script/yaml-check       YAML only     (yamllint)
+#   ./script/shell-check      Shell only    (shfmt -d + shellcheck)
+#   ./script/markdown-check   Markdown only (Prettier --check + markdownlint-cli2)
+#
+# Examples:
+#   ./script/lint-check
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+activate_venv
+
+run_hook "lint-check" "pre"
+
+"$SCRIPT_DIR/python-check"
+echo ""
+"$SCRIPT_DIR/yaml-check"
+echo ""
+"$SCRIPT_DIR/shell-check"
+echo ""
+"$SCRIPT_DIR/markdown-check"
+
+run_hook "lint-check" "post"
+log_success "Linting check completed"

@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# script/develop: Start Home Assistant in development mode
+#
+# Starts Home Assistant with debug logging enabled, using the config/ directory
+# for configuration. Automatically cleans up accidental package installations and
+# sets PYTHONPATH to load the integration from custom_components/.
+#
+# Usage:
+#   ./script/develop
+#
+# Examples:
+#   ./script/develop
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+activate_venv
+
+# Kill any existing Home Assistant and debugpy processes
+log_header "Cleaning up existing processes"
+if pkill -f "hass --config.*${PWD}/config" 2>/dev/null; then
+    log_info "Stopped existing Home Assistant process"
+fi
+if pkill -f "debugpy.*5678" 2>/dev/null; then
+    log_info "Stopped existing debugpy process (port 5678)"
+fi
+sleep 1 # Give processes time to terminate
+
+# Clean up critical issues (accidental package installations)
+"$SCRIPT_DIR/clean" --minimal
+
+# Create config dir if not present
+if [[ ! -d ${PWD}/config ]]; then
+    mkdir -p "${PWD}/config"
+    hass --config "${PWD}/config" --script ensure_config
+fi
+
+# Sync HACS files if HACS is installed
+if [[ -f "${PWD}/config/custom_components/hacs/__init__.py" ]]; then
+    "$SCRIPT_DIR/setup/sync-hacs"
+fi
+
+run_hook "develop" "pre"
+
+# Set the path to custom_components
+## This lets us have the structure we want <root>/custom_components/philips_airpurifier
+## while at the same time have Home Assistant configuration inside <root>/config
+## without resulting to symlinks.
+export PYTHONPATH="${PYTHONPATH:-}:${PWD}/custom_components"
+
+log_header "Starting Home Assistant in development mode"
+log_info "Config directory: ${PWD}/config"
+log_info "Debug logging: enabled"
+log_separator
+echo ""
+
+# Start Home Assistant
+hass --config "${PWD}/config" --debug

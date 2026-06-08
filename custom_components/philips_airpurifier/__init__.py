@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import logging
+from typing import cast
 
 from philips_airctrl import CoAPClient
 
@@ -43,7 +45,10 @@ PLATFORMS: list[Platform] = [
     Platform.SWITCH,
 ]
 
-CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
+CONFIG_SCHEMA: Callable[[ConfigType], ConfigType] = cast(
+    Callable[[ConfigType], ConfigType],
+    cv.config_entry_only_config_schema(DOMAIN),  # pyright: ignore[reportUnknownMemberType]
+)
 HEALTH_LISTENERS = f"{DOMAIN}_health_listeners"
 
 

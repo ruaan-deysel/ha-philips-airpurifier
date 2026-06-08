@@ -1,0 +1,46 @@
+---
+# yamllint configuration for ha_integration_domain
+# Documentation: https://yamllint.readthedocs.io/en/stable/rules.html
+
+extends: default
+
+ignore: |
+  config/
+  .local/
+  schemas/yaml/
+  .github/ISSUE_TEMPLATE/
+  .github/workflows/
+  .pre-commit-config.yaml
+  # .github/workflows/ — GitHub Actions cache keys and run: blocks routinely exceed
+  # 120 chars and cannot be meaningfully wrapped. Workflows have their own validation.
+  # .pre-commit-config.yaml — hook entry: fields contain bash one-liners that are
+  # structurally un-wrappable (up to 625 chars). pre-commit has its own schema.
+
+rules:
+  # Match project line length (same as Python/Prettier). Use warning level because
+  # some generated files (e.g. pre-commit inline scripts) intentionally exceed this.
+  line-length:
+    max: 120
+    level: warning
+
+  # Do not require document-start (---); HA YAML files typically omit it
+  document-start: disable
+
+  # GitHub Actions uses 'on:' as a YAML key (parsed as boolean true); allow it
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false
+
+  # Allow a single space between content and inline comment
+  comments:
+    min-spaces-from-content: 1
+
+  # Trailing comments after the last sequence item produce false positives
+  comments-indentation:
+    level: warning
+
+  # Allow both indentation styles for block sequences
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false

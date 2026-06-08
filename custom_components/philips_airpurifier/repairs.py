@@ -251,7 +251,7 @@ class ConfigurationMigrationFlow(RepairsFlow):
     async def async_step_migrate_config(self) -> FlowResult:  # pragma: no cover
         """Migrate configuration."""
         try:
-            migrated_entries = []
+            migrated_entries: list[str] = []
 
             for entry in self.hass.config_entries.async_entries(DOMAIN):
                 # Check if status data is missing (old configuration)
@@ -315,13 +315,13 @@ class DuplicateEntitiesFlow(RepairsFlow):
         """Remove duplicate entities."""
         try:
             entity_registry = er.async_get(self.hass)
-            removed_entities = []
+            removed_entities: list[str] = []
 
             for entry in self.hass.config_entries.async_entries(DOMAIN):
                 entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
 
                 # Group entities by unique_id
-                unique_id_groups = {}
+                unique_id_groups: dict[str, list[Any]] = {}
                 for entity in entities:
                     if entity.unique_id:
                         if entity.unique_id not in unique_id_groups:
@@ -446,8 +446,8 @@ async def async_check_integration_health(
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
 
-    orphaned_entities = []
-    duplicate_entities = []
+    orphaned_entities: list[str] = []
+    duplicate_entities: list[str] = []
 
     for entry in hass.config_entries.async_entries(DOMAIN):
         entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
@@ -460,7 +460,7 @@ async def async_check_integration_health(
                     orphaned_entities.append(entity.entity_id)
 
         # Check for duplicates
-        unique_ids = {}
+        unique_ids: dict[str, str] = {}
         for entity in entities:
             if entity.unique_id:
                 if entity.unique_id in unique_ids:

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# script/type-check: Run type checking tools
+#
+# Runs Pyright type checker to validate type annotations and catch type-related
+# issues.
+#
+# Usage:
+#   ./script/type-check
+#
+# Examples:
+#   ./script/type-check
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+activate_venv
+
+run_hook "type-check" "pre"
+
+log_header "Running type checking tools"
+
+pyright
+
+run_hook "type-check" "post"
+log_success "Type checking completed"
