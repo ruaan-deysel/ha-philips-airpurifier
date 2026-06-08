@@ -281,7 +281,8 @@ async def test_select_async_select_option_empty_noop(
     """Test empty option is ignored."""
     entity_registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(entity_registry, init_integration.entry_id)
-    select_entry = next(e for e in entries if e.domain == SELECT_DOMAIN and "preferred_index" in e.entity_id)
+    select_entry = next(e for e in entries if e.domain
+                        == SELECT_DOMAIN and "preferred_index" in e.entity_id)
     entity = hass.data["entity_components"][SELECT_DOMAIN].get_entity(select_entry.entity_id)
 
     mock_coap_client.set_control_values.reset_mock()
@@ -298,7 +299,8 @@ async def test_select_async_select_option_invalid_value_noop(
     """Test invalid option value is ignored."""
     entity_registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(entity_registry, init_integration.entry_id)
-    select_entry = next(e for e in entries if e.domain == SELECT_DOMAIN and "preferred_index" in e.entity_id)
+    select_entry = next(e for e in entries if e.domain
+                        == SELECT_DOMAIN and "preferred_index" in e.entity_id)
     entity = hass.data["entity_components"][SELECT_DOMAIN].get_entity(select_entry.entity_id)
 
     mock_coap_client.set_control_values.reset_mock()
@@ -324,7 +326,8 @@ async def test_remove_duplicate_preferred_index_entity_by_entity_id(
         config_entry=entry,
     )
 
-    coordinator = SimpleNamespace(device_id="device-01", model="AC4220/12", device_name="Living Room")
+    coordinator = SimpleNamespace(
+        device_id="device-01", model="AC4220/12", device_name="Living Room")
 
     await _remove_duplicate_preferred_index_entity(hass, coordinator)
 
@@ -347,7 +350,8 @@ async def test_remove_duplicate_preferred_index_entity_by_unique_id_scan(
         config_entry=entry,
     )
 
-    coordinator = SimpleNamespace(device_id="device-02", model="AC4220/12", device_name="Different Name")
+    coordinator = SimpleNamespace(
+        device_id="device-02", model="AC4220/12", device_name="Different Name")
 
     await _remove_duplicate_preferred_index_entity(hass, coordinator)
 
@@ -383,7 +387,8 @@ async def test_remove_duplicate_preferred_index_entity_non_matching_unique_id_ke
         config_entry=entry,
     )
 
-    coordinator = SimpleNamespace(device_id="device-03", model="AC4220/12", device_name="Living Room")
+    coordinator = SimpleNamespace(
+        device_id="device-03", model="AC4220/12", device_name="Living Room")
     await _remove_duplicate_preferred_index_entity(hass, coordinator)
 
     assert entity_registry.async_get(kept.entity_id) is not None
@@ -396,7 +401,8 @@ async def test_select_async_select_option_keyerror_branch(
     """Test select option handler catches KeyError from options mapping."""
     entity_registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(entity_registry, init_integration.entry_id)
-    select_entry = next(e for e in entries if e.domain == SELECT_DOMAIN and "preferred_index" in e.entity_id)
+    select_entry = next(e for e in entries if e.domain
+                        == SELECT_DOMAIN and "preferred_index" in e.entity_id)
     entity = hass.data["entity_components"][SELECT_DOMAIN].get_entity(select_entry.entity_id)
 
     class BrokenOptionsKeyError:
@@ -415,7 +421,8 @@ async def test_select_async_select_option_valueerror_branch(
     """Test select option handler catches ValueError from options mapping."""
     entity_registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(entity_registry, init_integration.entry_id)
-    select_entry = next(e for e in entries if e.domain == SELECT_DOMAIN and "preferred_index" in e.entity_id)
+    select_entry = next(e for e in entries if e.domain
+                        == SELECT_DOMAIN and "preferred_index" in e.entity_id)
     entity = hass.data["entity_components"][SELECT_DOMAIN].get_entity(select_entry.entity_id)
 
     class BrokenOptionsValueError:
@@ -434,7 +441,8 @@ async def test_select_current_option_unknown_value_returns_string_none(
     """Test current_option returns stringified None for unknown raw option value."""
     entity_registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(entity_registry, init_integration.entry_id)
-    select_entry = next(e for e in entries if e.domain == SELECT_DOMAIN and "preferred_index" in e.entity_id)
+    select_entry = next(e for e in entries if e.domain
+                        == SELECT_DOMAIN and "preferred_index" in e.entity_id)
     entity = hass.data["entity_components"][SELECT_DOMAIN].get_entity(select_entry.entity_id)
 
     coordinator = init_integration.runtime_data
@@ -488,7 +496,8 @@ async def test_fan_mode_select_option_updates_preset(
     """Test fan_mode select calls set_control_values with preset status pattern."""
     entity_registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(entity_registry, init_integration.entry_id)
-    fan_mode_entry = next(e for e in entries if e.domain == SELECT_DOMAIN and e.translation_key == "fan_mode")
+    fan_mode_entry = next(e for e in entries if e.domain
+                          == SELECT_DOMAIN and e.translation_key == "fan_mode")
     entity_id = fan_mode_entry.entity_id
 
     await hass.services.async_call(
@@ -499,7 +508,8 @@ async def test_fan_mode_select_option_updates_preset(
     )
     await hass.async_block_till_done()
 
-    mock_coap_client.set_control_values.assert_called_with(data={"pwr": "1", "mode": "S", "om": "s"})
+    mock_coap_client.set_control_values.assert_called_with(
+        data={"pwr": "1", "mode": "S", "om": "s"})
 
     state = hass.states.get(entity_id)
     assert state is not None
@@ -514,7 +524,8 @@ async def test_fan_mode_select_empty_option_noop(
     """Test fan_mode select ignores empty options."""
     entity_registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(entity_registry, init_integration.entry_id)
-    fan_mode_entry = next(e for e in entries if e.domain == SELECT_DOMAIN and e.translation_key == "fan_mode")
+    fan_mode_entry = next(e for e in entries if e.domain
+                          == SELECT_DOMAIN and e.translation_key == "fan_mode")
     entity = hass.data["entity_components"][SELECT_DOMAIN].get_entity(fan_mode_entry.entity_id)
 
     mock_coap_client.set_control_values.reset_mock()
@@ -530,7 +541,8 @@ async def test_fan_mode_select_invalid_option_noop(
     """Test fan_mode select ignores invalid options."""
     entity_registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(entity_registry, init_integration.entry_id)
-    fan_mode_entry = next(e for e in entries if e.domain == SELECT_DOMAIN and e.translation_key == "fan_mode")
+    fan_mode_entry = next(e for e in entries if e.domain
+                          == SELECT_DOMAIN and e.translation_key == "fan_mode")
     entity = hass.data["entity_components"][SELECT_DOMAIN].get_entity(fan_mode_entry.entity_id)
 
     mock_coap_client.set_control_values.reset_mock()
