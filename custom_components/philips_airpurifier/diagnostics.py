@@ -115,5 +115,6 @@ async def async_get_config_entry_diagnostics(
 
     return cast(
         dict[str, Any],
-        redact_helper.async_redact_data(diagnostics_data, TO_REDACT),  # pyright: ignore[reportUnknownMemberType]
+        # pyright: ignore[reportUnknownMemberType]
+        redact_helper.async_redact_data(diagnostics_data, TO_REDACT),
     )

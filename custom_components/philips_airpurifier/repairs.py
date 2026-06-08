@@ -418,7 +418,8 @@ async def async_check_integration_health(
     # Locate the config entry for this coordinator so the warning can be
     # acknowledged persistently and reset once a filter is replaced (issue #29).
     entry = next(
-        (e for e in hass.config_entries.async_entries(DOMAIN) if e.data.get(CONF_HOST) == coordinator.host),
+        (e for e in hass.config_entries.async_entries(DOMAIN)
+         if e.data.get(CONF_HOST) == coordinator.host),
         None,
     )
     acknowledged = bool(entry and entry.options.get(OPT_FILTER_WARNING_ACK, False))
