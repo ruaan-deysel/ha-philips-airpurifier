@@ -112,7 +112,6 @@
         }
       },
       "humidification": {
-        "name": "Humidification",
         "state": {
           "on": "mdi:water-percent",
           "off": "mdi:air-filter"
