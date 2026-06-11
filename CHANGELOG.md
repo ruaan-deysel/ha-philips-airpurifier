@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+## [2026.6.1] - 2026-06-12
+
 ### Fixed
 
 - DHCP discovery now matches already configured devices by MAC address (or
@@ -71,5 +73,6 @@ Latest release prior to this changelog being introduced. See the
 [GitHub releases](https://github.com/ruaan-deysel/ha-philips-airpurifier/releases)
 for the history of earlier versions.
 
-[Unreleased]: https://github.com/ruaan-deysel/ha-philips-airpurifier/compare/v2026.6.0...HEAD
+[Unreleased]: https://github.com/ruaan-deysel/ha-philips-airpurifier/compare/v2026.6.1...HEAD
+[2026.6.1]: https://github.com/ruaan-deysel/ha-philips-airpurifier/compare/v2026.6.0...v2026.6.1
 [2026.6.0]: https://github.com/ruaan-deysel/ha-philips-airpurifier/releases/tag/v2026.6.0
