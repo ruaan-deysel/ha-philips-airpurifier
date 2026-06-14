@@ -322,7 +322,8 @@ async def test_async_watchdog_triggers_reconnect_when_elapsed(hass: HomeAssistan
             "custom_components.philips_airpurifier.coordinator.asyncio.sleep",
             side_effect=[None, asyncio.CancelledError],
         ),
-        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop", return_value=fake_loop),
+        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop",
+              return_value=fake_loop),
         patch.object(coordinator, "_async_reconnect", new=AsyncMock()) as reconnect_mock,
     ):
         with pytest.raises(asyncio.CancelledError):
@@ -345,7 +346,8 @@ async def test_async_watchdog_no_reconnect_when_recent(hass: HomeAssistant) -> N
             "custom_components.philips_airpurifier.coordinator.asyncio.sleep",
             side_effect=[None, asyncio.CancelledError],
         ),
-        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop", return_value=fake_loop),
+        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop",
+              return_value=fake_loop),
         patch.object(coordinator, "_async_reconnect", new=AsyncMock()) as reconnect_mock,
     ):
         with pytest.raises(asyncio.CancelledError):
@@ -493,7 +495,8 @@ async def test_async_observe_status_success_updates_data(hass: HomeAssistant) ->
         return MagicMock()
 
     with (
-        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop", return_value=fake_loop),
+        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop",
+              return_value=fake_loop),
         patch.object(hass, "async_create_background_task", side_effect=_fake_create_task),
     ):
         await coordinator._async_observe_status()
