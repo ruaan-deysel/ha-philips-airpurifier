@@ -281,7 +281,7 @@ async def test_async_observe_status_cancelled_raises(hass: HomeAssistant) -> Non
 
 
 async def test_async_observe_status_error_triggers_reconnect(hass: HomeAssistant) -> None:
-    """Test observe loop errors schedule reconnect task."""
+    """Test observe loop errors schedule reconnect without marking unavailable."""
     client = MagicMock()
 
     async def failing_stream():
@@ -298,11 +298,13 @@ async def test_async_observe_status_error_triggers_reconnect(hass: HomeAssistant
 
     with (
         patch.object(coordinator, "_async_reconnect", new=AsyncMock()) as reconnect_mock,
+        patch.object(coordinator, "_mark_unavailable") as mark_unavailable,
         patch.object(hass, "async_create_background_task", side_effect=_fake_create_task) as create_task,
     ):
         await coordinator._async_observe_status()
 
     reconnect_mock.assert_called_once()
+    mark_unavailable.assert_not_called()
     create_task.assert_called_once()
 
 
@@ -366,13 +368,37 @@ async def test_async_reconnect_inflight_guard(hass: HomeAssistant) -> None:
 
 
 async def test_do_reconnect_handles_status_fetch_failure(hass: HomeAssistant) -> None:
-    """Test reconnect continues even when status fetch after reconnect fails."""
+    """Test reconnect failure marks unavailable and schedules exponential retry."""
     old_client = AsyncMock()
     old_client.shutdown = AsyncMock()
     coordinator = _make_coordinator(hass, client=old_client)
 
     new_client = AsyncMock()
     new_client.get_status.side_effect = RuntimeError("status failed")
+    coordinator._reconnect_delay = 5
+
+    with (
+        patch(
+            "custom_components.philips_airpurifier.coordinator.CoAPClient.create",
+            new=AsyncMock(return_value=new_client),
+        ),
+        patch.object(coordinator, "_schedule_reconnect_retry") as schedule_retry,
+    ):
+        await coordinator._do_reconnect()
+
+    schedule_retry.assert_called_once_with(5)
+    assert coordinator._reconnect_delay == 10
+
+
+async def test_do_reconnect_success_resets_backoff(hass: HomeAssistant) -> None:
+    """Test successful reconnect resets retry delay and restarts observing."""
+    old_client = AsyncMock()
+    old_client.shutdown = AsyncMock()
+    coordinator = _make_coordinator(hass, client=old_client)
+    coordinator._reconnect_delay = 60
+
+    new_client = AsyncMock()
+    new_client.get_status.return_value = ({"pwr": "1"}, 30)
 
     with (
         patch(
@@ -384,6 +410,25 @@ async def test_do_reconnect_handles_status_fetch_failure(hass: HomeAssistant) ->
         await coordinator._do_reconnect()
 
     start_observing.assert_called_once()
+    assert coordinator._reconnect_delay == 5
+
+
+async def test_async_reconnect_cancels_existing_retry_task(hass: HomeAssistant) -> None:
+    """Test reconnect request cancels pending retry timer task."""
+    coordinator = _make_coordinator(hass)
+    retry_task = MagicMock()
+    retry_task.done.return_value = False
+    coordinator._reconnect_retry_task = retry_task
+
+    def _fake_create_task(coro, *_args, **_kwargs):
+        coro.close()
+        return MagicMock()
+
+    with patch.object(hass, "async_create_background_task", side_effect=_fake_create_task):
+        await coordinator._async_reconnect()
+
+    retry_task.cancel.assert_called_once()
+    assert coordinator._reconnect_retry_task is None
 
 
 async def test_do_reconnect_generic_failure_suppressed(hass: HomeAssistant) -> None:
@@ -543,7 +588,7 @@ async def test_do_reconnect_success_updates_data_and_timeout(hass: HomeAssistant
 
 
 async def test_async_shutdown_cancels_all_existing_tasks(hass: HomeAssistant) -> None:
-    """Test shutdown cancels observe/watchdog/reconnect tasks when present."""
+    """Test shutdown cancels observe/watchdog/reconnect/retry tasks when present."""
     coordinator = _make_coordinator(hass)
 
     async def _block_forever():
@@ -552,9 +597,11 @@ async def test_async_shutdown_cancels_all_existing_tasks(hass: HomeAssistant) ->
     observe_task = hass.async_create_task(_block_forever())
     watchdog_task = hass.async_create_task(_block_forever())
     reconnect_task = hass.async_create_task(_block_forever())
+    reconnect_retry_task = hass.async_create_task(_block_forever())
     coordinator._observe_task = observe_task
     coordinator._watchdog_task = watchdog_task
     coordinator._reconnect_task = reconnect_task
+    coordinator._reconnect_retry_task = reconnect_retry_task
     coordinator.client = AsyncMock()
 
     await coordinator.async_shutdown()
@@ -562,7 +609,9 @@ async def test_async_shutdown_cancels_all_existing_tasks(hass: HomeAssistant) ->
     assert observe_task.cancelled()
     assert watchdog_task.cancelled()
     assert reconnect_task.cancelled()
+    assert reconnect_retry_task.cancelled()
     assert coordinator._shutting_down is True
     assert coordinator._observe_task is None
     assert coordinator._watchdog_task is None
     assert coordinator._reconnect_task is None
+    assert coordinator._reconnect_retry_task is None

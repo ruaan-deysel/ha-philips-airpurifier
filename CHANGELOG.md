@@ -7,6 +7,17 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+## [2026.6.2] - 2026-06-14
+
+### Improvements
+
+- Coordinator reconnect handling now uses exponential backoff retries
+  (5 seconds up to a 60-second cap) after reconnect failures, instead of
+  waiting for the watchdog interval to recover. ([#51](https://github.com/ruaan-deysel/ha-philips-airpurifier/issues/51))
+- Devices are no longer marked unavailable immediately when the CoAP
+  observation stream ends; unavailable is now set only when reconnect attempts
+  actually fail, reducing transient warning noise. ([#51](https://github.com/ruaan-deysel/ha-philips-airpurifier/issues/51))
+
 ## [2026.6.1] - 2026-06-12
 
 ### Fixed

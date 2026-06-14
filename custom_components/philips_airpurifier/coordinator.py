@@ -24,6 +24,8 @@ _LOGGER = logging.getLogger(__name__)
 
 MISSED_PACKAGE_COUNT = 3
 DEFAULT_TIMEOUT = 60
+RECONNECT_INITIAL_DELAY = 5
+RECONNECT_MAX_DELAY = 60
 
 
 class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -48,9 +50,11 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         self._observe_task: asyncio.Task[None] | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
+        self._reconnect_retry_task: asyncio.Task[None] | None = None
         self._timeout: int = DEFAULT_TIMEOUT
         self._watchdog_task: asyncio.Task[None] | None = None
         self._last_update: float = 0.0
+        self._reconnect_delay: int = RECONNECT_INITIAL_DELAY
         self._device_available = True
         self._shutting_down: bool = False
 
@@ -157,7 +161,6 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         finally:
             if not self._shutting_down:
-                self._mark_unavailable("observation stream ended")
                 self.hass.async_create_background_task(
                     self._async_reconnect(),
                     f"philips_airpurifier_reconnect_{self.host}",
@@ -183,10 +186,37 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._reconnect_task is not None and not self._reconnect_task.done():
             return
 
+        current_task = asyncio.current_task()
+        if (
+            self._reconnect_retry_task is not None
+            and not self._reconnect_retry_task.done()
+            and current_task is not self._reconnect_retry_task
+        ):
+            self._reconnect_retry_task.cancel()
+            self._reconnect_retry_task = None
+
         self._reconnect_task = self.hass.async_create_background_task(
             self._do_reconnect(),
             f"philips_airpurifier_reconnect_{self.host}",
         )
+
+    def _schedule_reconnect_retry(self, delay: int) -> None:
+        """Schedule a reconnect retry after a delay."""
+        if self._shutting_down:
+            return
+
+        if self._reconnect_retry_task is not None and not self._reconnect_retry_task.done():
+            self._reconnect_retry_task.cancel()
+
+        self._reconnect_retry_task = self.hass.async_create_background_task(
+            self._async_retry_reconnect(delay),
+            f"philips_airpurifier_retry_{self.host}",
+        )
+
+    async def _async_retry_reconnect(self, delay: int) -> None:
+        """Wait before attempting reconnect again."""
+        await asyncio.sleep(delay)
+        await self._async_reconnect()
 
     async def _do_reconnect(self) -> None:
         """Perform the actual reconnect."""
@@ -195,26 +225,27 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 await self.client.shutdown()
 
             self.client = await async_create_client(self.host, create_client=CoAPClient.create)
+            # One-shot read before re-establishing the observe stream.
+            status, timeout = await self.client.get_status(observe=False)
+            self._timeout = timeout
+            self._last_update = asyncio.get_event_loop().time()
+            self._reconnect_delay = RECONNECT_INITIAL_DELAY
+            self._mark_available()
+            self.async_set_updated_data(status)
             _LOGGER.info("Reconnected to %s", self.host)
-
-            try:
-                # One-shot read before re-establishing the observe stream.
-                status, timeout = await self.client.get_status(observe=False)
-                self._timeout = timeout
-                self._mark_available()
-                self.async_set_updated_data(status)
-            except Exception:
-                self._mark_unavailable("reconnect status fetch failed")
-                _LOGGER.debug(
-                    "Failed to get status after reconnect to %s",
-                    self.host,
-                )
-
             self._start_observing()
         except asyncio.CancelledError:
             raise
         except Exception:
-            _LOGGER.exception("Reconnect to %s failed", self.host)
+            retry_delay = self._reconnect_delay
+            self._reconnect_delay = min(self._reconnect_delay * 2, RECONNECT_MAX_DELAY)
+            self._mark_unavailable("reconnect failed")
+            _LOGGER.warning(
+                "Reconnect to %s failed, retrying in %s seconds",
+                self.host,
+                retry_delay,
+            )
+            self._schedule_reconnect_retry(retry_delay)
 
     async def async_first_refresh_and_observe(self) -> None:
         """Perform first refresh and start observing."""
@@ -239,7 +270,12 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._shutting_down = True
 
         tasks_to_cancel: list[asyncio.Task[None]] = []
-        for task in (self._observe_task, self._watchdog_task, self._reconnect_task):
+        for task in (
+            self._observe_task,
+            self._watchdog_task,
+            self._reconnect_task,
+            self._reconnect_retry_task,
+        ):
             if task is not None and not task.done():
                 task.cancel()
                 tasks_to_cancel.append(task)
@@ -247,6 +283,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._observe_task = None
         self._watchdog_task = None
         self._reconnect_task = None
+        self._reconnect_retry_task = None
 
         for task in tasks_to_cancel:
             with contextlib.suppress(asyncio.CancelledError):
