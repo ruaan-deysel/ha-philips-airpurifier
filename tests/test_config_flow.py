@@ -205,6 +205,32 @@ async def test_user_flow_model_family_supported(
     assert result["data"][CONF_MODEL] == "AC0650"
 
 
+async def test_user_flow_model_family_supported_ac2210(
+    hass: HomeAssistant,
+) -> None:
+    """Test user flow accepts AC2210/10 via AC2210 family fallback."""
+    ac2210_status = MOCK_STATUS_GEN1.copy()
+    ac2210_status["modelid"] = "AC2210/10"
+
+    with patch(
+        "custom_components.philips_airpurifier.config_flow.CoAPClient",
+    ) as mock_cls:
+        client = AsyncMock()
+        client.get_status = AsyncMock(return_value=(ac2210_status, 60))
+        client.shutdown = AsyncMock()
+        mock_cls.create = AsyncMock(return_value=client)
+
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={CONF_HOST: TEST_HOST},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_MODEL] == "AC2210"
+
+
 async def test_user_flow_already_configured(
     hass: HomeAssistant,
     mock_coap_client_config_flow: AsyncMock,

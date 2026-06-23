@@ -6,6 +6,8 @@ from custom_components.philips_airpurifier.model import (
     ApiGeneration,
     DeviceModelConfig,
 )
+from custom_components.philips_airpurifier.const import FanModel
+from custom_components.philips_airpurifier.device_models import DEVICE_MODELS
 
 
 def test_gen1_power_key() -> None:
@@ -79,3 +81,8 @@ def test_default_fields() -> None:
     assert config.oscillation is None
     assert config.create_fan is True
     assert config.requires_mode_cycling is False
+
+
+def test_ac2210_uses_ac2221_device_config() -> None:
+    """Test AC2210 model family reuses AC2221 device configuration."""
+    assert DEVICE_MODELS[FanModel.AC2210] is DEVICE_MODELS[FanModel.AC2221]
