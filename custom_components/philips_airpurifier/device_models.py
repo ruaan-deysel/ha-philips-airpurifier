@@ -696,6 +696,25 @@ _CONFIG_HU1509 = DeviceModelConfig(
     humidifiers=[PhilipsApi.NEW2_HUMIDITY_TARGET2],
 )
 
+# HU4209/00 config -- identical to HU1509 but without NEW2_AMBIENT_LIGHT_MODE
+_CONFIG_HU4209 = DeviceModelConfig(
+    api_generation=ApiGeneration.GEN3,
+    preset_modes=_HU1509_PRESET_MODES,
+    speeds=_HU1509_SPEEDS,
+    create_fan=False,
+    switches=[
+        PhilipsApi.NEW2_BEEP,
+        PhilipsApi.NEW2_STANDBY_SENSORS,
+    ],
+    lights=[PhilipsApi.NEW2_DISPLAY_BACKLIGHT4],
+    selects=[
+        PhilipsApi.NEW2_TIMER2,
+        PhilipsApi.NEW2_LAMP_MODE2,
+    ],
+    binary_sensors=[PhilipsApi.NEW2_ERROR_CODE],
+    humidifiers=[PhilipsApi.NEW2_HUMIDITY_TARGET2],
+)
+
 # =============================================================================
 # DEVICE_MODELS: The main mapping
 # =============================================================================
@@ -1517,6 +1536,10 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
     # =========================================================================
     FanModel.HU1509: _CONFIG_HU1509,
     FanModel.HU1510: _CONFIG_HU1509,
+    # =========================================================================
+    # HU4209
+    # =========================================================================
+    FanModel.HU4209_00: _CONFIG_HU4209,
     # =========================================================================
     # HU5710
     # =========================================================================
