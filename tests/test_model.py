@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from custom_components.philips_airpurifier.const import FanModel
+from custom_components.philips_airpurifier.device_models import DEVICE_MODELS
 from custom_components.philips_airpurifier.model import (
     ApiGeneration,
     DeviceModelConfig,
 )
-from custom_components.philips_airpurifier.const import FanModel
-from custom_components.philips_airpurifier.device_models import DEVICE_MODELS
 
 
 def test_gen1_power_key() -> None:

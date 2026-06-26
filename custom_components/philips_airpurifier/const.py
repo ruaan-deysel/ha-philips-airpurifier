@@ -128,6 +128,7 @@ class FanModel(StrEnum):
     CX5120 = "CX5120"
     HU1509 = "HU1509"
     HU1510 = "HU1510"
+    HU4209_00 = "HU4209/00"
     HU5710 = "HU5710"
 
 
