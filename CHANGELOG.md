@@ -7,6 +7,17 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+### Added
+
+- Support for the **HU4209/00** (Philips Evaporative Humidifier Series 4000).
+  It uses Gen3 CoAP and reuses the HU1509/HU1510 preset and speed mappings,
+  differing only by the absence of ambient light mode
+  ([#63](https://github.com/ruaan-deysel/ha-philips-airpurifier/pull/63)).
+- Support for the **AC2210** family (PureProtect Quiet 2200 series, e.g.
+  `AC2210/10`) by reusing the AC2221 device configuration; previously these
+  devices were detected but rejected with `model_unsupported`
+  ([#59](https://github.com/ruaan-deysel/ha-philips-airpurifier/pull/59)).
+
 ## [2026.6.2] - 2026-06-14
 
 ### Improvements
