@@ -126,6 +126,7 @@ class FanModel(StrEnum):
     CX3120 = "CX3120"
     CX3550 = "CX3550"
     CX5120 = "CX5120"
+    CX7550 = "CX7550"
     HU1509 = "HU1509"
     HU1510 = "HU1510"
     HU4209_00 = "HU4209/00"
@@ -146,6 +147,8 @@ class PresetMode:
     SPEED_8 = "speed_8"
     SPEED_9 = "speed_9"
     SPEED_10 = "speed_10"
+    SPEED_11 = "speed_11"
+    SPEED_12 = "speed_12"
     ALLERGEN = "allergen"
     AUTO = "auto"
     AUTO_GENERAL = "auto_general"
@@ -176,6 +179,8 @@ class PresetMode:
         SPEED_8: "mdi:fan",
         SPEED_9: "mdi:fan",
         SPEED_10: "mdi:fan",
+        SPEED_11: "mdi:fan",
+        SPEED_12: "mdi:fan",
         ALLERGEN: "mdi:flower-pollen",
         AUTO: "mdi:autorenew",
         AUTO_GENERAL: "mdi:autorenew",
@@ -373,6 +378,10 @@ class PhilipsApi:
     }
     OSCILLATION_MAP3 = {
         SWITCH_ON: 45,
+        SWITCH_OFF: 0,
+    }
+    OSCILLATION_MAP4 = {
+        SWITCH_ON: 80,
         SWITCH_OFF: 0,
     }
 

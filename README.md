@@ -72,7 +72,7 @@ This integration includes automatic reconnection attempts, but they may not alwa
 
 1. **Add Repository**: Click the button below to add this repository to HACS:
 
-   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ruaan-deysel&repository=ha-philips-airpurifier&category=integration)
+   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Toonvish&repository=ha-philips-airpurifier&category=integration)
 
 2. **Install**: Search for "Philips AirPurifier" in HACS and install it
 3. **Restart**: Restart Home Assistant
@@ -138,7 +138,8 @@ If your device changes IP addresses:
 | **Air Purifiers** | 50+ models     | AC0650, AC0850, AC0950, AC1214, AC1715, AC2729, AC2889, AC2936, AC3033, AC3055, AC3210, AC3259, AC3420, AC3737, AC3829, AC3854, AC3858, AC4220, AC4550, AC5659 |
 | **2-in-1 Combos** | 7 models       | AC0850C series, AMF765, AMF870                                                                                                                                 |
 | **Humidifiers**   | 5 models       | CX3120, CX3550, CX5120, HU1509, HU1510, HU5710                                                                                                                 |
-| **Total**         | **62+ models** | **28 series**                                                                                                                                                  |
+| **Fans**          | 1 model        | CX7550                                                                                                                                                          |
+| **Total**         | **63+ models** | **29 series**                                                                                                                                                  |
 
 ### Air Purifiers
 
@@ -182,6 +183,12 @@ If your device changes IP addresses:
 | **CX5120**   | CX5120         | Advanced Humidifier |
 | **HU1509**   | HU1509, HU1510 | Compact Humidifier  |
 | **HU5710**   | HU5710         | Premium Humidifier  |
+
+### Fans
+
+| Model Series | Variants  | Type            |
+| ------------ | --------- | --------------- |
+| **CX7550**   | CX7550/01 | Oscillating Fan |
 
 ### Special Variants & Notes
 

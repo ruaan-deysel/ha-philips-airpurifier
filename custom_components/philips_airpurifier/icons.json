@@ -36,7 +36,9 @@
               "speed_7": "mdi:fan",
               "speed_8": "mdi:fan",
               "speed_9": "mdi:fan",
-              "speed_10": "mdi:fan"
+              "speed_10": "mdi:fan",
+              "speed_11": "mdi:fan",
+              "speed_12": "mdi:fan"
             }
           }
         }
@@ -248,7 +250,9 @@
           "speed_7": "mdi:fan",
           "speed_8": "mdi:fan",
           "speed_9": "mdi:fan",
-          "speed_10": "mdi:fan"
+          "speed_10": "mdi:fan",
+          "speed_11": "mdi:fan",
+          "speed_12": "mdi:fan"
         }
       },
       "timer": {

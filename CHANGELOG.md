@@ -7,6 +7,13 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+### Added
+
+- Support for the **CX7550/01** (Philips oscillating tower fan). It uses Gen3
+  CoAP and is fan-only (no heater). Exposes all 12 manual fan speeds, the Auto,
+  Sleep, Natural and Turbo preset modes, on/off oscillation, the display
+  backlight light, the beep switch, a timer, and the temperature sensor.
+
 ## [2026.6.3] - 2026-06-27
 
 ### Added
