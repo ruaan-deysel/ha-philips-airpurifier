@@ -204,6 +204,9 @@
       "standby_sensors": {
         "name": "Standby Sensoren"
       },
+      "standby_temperature": {
+        "name": "Temperaturanzeige im Standby"
+      },
       "auto_plus": {
         "name": "Auto Plus"
       },

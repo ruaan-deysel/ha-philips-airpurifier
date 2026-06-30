@@ -290,6 +290,7 @@ class FanAttributes(StrEnum):
     MIN_TEMPERATURE = "min_temperature"
     MAX_TEMPERATURE = "max_temperature"
     STANDBY_SENSORS = "standby_sensors"
+    STANDBY_TEMP_DISPLAY = "standby_temperature"
     AUTO_PLUS = "auto_plus"
     WATER_TANK = "water_tank"
     AUTO_QUICKDRY_MODE = "auto_quickdry_mode"
@@ -439,6 +440,7 @@ class PhilipsApi:
     NEW2_REMAINING_TIME = "D03211"
     NEW2_TARGET_TEMP = "D0310E"
     NEW2_STANDBY_SENSORS = "D03134"
+    NEW2_STANDBY_TEMP_DISPLAY = "D03133"  # CX7550: show temperature in standby
     NEW2_AUTO_PLUS_AI = "D03180"
     NEW2_PREFERRED_INDEX = "D0312A#1"
     NEW2_GAS_PREFERRED_INDEX = "D0312A#2"
@@ -841,6 +843,12 @@ SWITCH_TYPES: dict[str, SwitchDescription] = {
     },
     PhilipsApi.NEW2_STANDBY_SENSORS: {
         FanAttributes.LABEL: FanAttributes.STANDBY_SENSORS,
+        SWITCH_ON: 1,
+        SWITCH_OFF: 0,
+    },
+    PhilipsApi.NEW2_STANDBY_TEMP_DISPLAY: {
+        FanAttributes.LABEL: FanAttributes.STANDBY_TEMP_DISPLAY,
+        CONF_ENTITY_CATEGORY: EntityCategory.CONFIG,
         SWITCH_ON: 1,
         SWITCH_OFF: 0,
     },

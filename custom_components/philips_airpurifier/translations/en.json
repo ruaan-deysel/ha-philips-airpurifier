@@ -233,6 +233,9 @@
       "standby_sensors": {
         "name": "Standby sensors"
       },
+      "standby_temperature": {
+        "name": "Standby temperature display"
+      },
       "auto_plus": {
         "name": "Auto plus"
       },

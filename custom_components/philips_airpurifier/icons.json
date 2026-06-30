@@ -164,6 +164,9 @@
       "standby_sensors": {
         "default": "mdi:power-settings"
       },
+      "standby_temperature": {
+        "default": "mdi:thermometer"
+      },
       "auto_plus": {
         "default": "mdi:format-annotation-plus"
       },

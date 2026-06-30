@@ -1633,7 +1633,7 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
             PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP4,
         },
         lights=[PhilipsApi.NEW2_DISPLAY_BACKLIGHT4],
-        switches=[PhilipsApi.NEW2_BEEP],
+        switches=[PhilipsApi.NEW2_BEEP, PhilipsApi.NEW2_STANDBY_TEMP_DISPLAY],
         selects=[PhilipsApi.NEW2_TIMER2],
         unavailable_sensors=[PhilipsApi.NEW2_FAN_SPEED, PhilipsApi.NEW2_GAS],
         # This firmware never answers a status read; it only pushes status to
