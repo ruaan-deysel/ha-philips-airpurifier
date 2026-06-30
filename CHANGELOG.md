@@ -11,8 +11,13 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 - Support for the **CX7550/01** (Philips oscillating tower fan). It uses Gen3
   CoAP and is fan-only (no heater). Exposes all 12 manual fan speeds, the Auto,
-  Sleep, Natural and Turbo preset modes, on/off oscillation, the display
-  backlight light, the beep switch, a timer, and the temperature sensor.
+  Sleep and Natural preset modes, on/off oscillation, the display backlight
+  light, the beep switch, a standby temperature-display switch, a timer, and
+  the temperature sensor. Initial Wi-Fi setup requires the Philips Air app;
+  control is fully local thereafter. The `AWS_Philips_AIR_Combo` firmware is
+  push-only (never answers a status read), so the integration nudges the
+  display backlight to obtain status. While the fan is off the firmware forces
+  a dim standby display that cannot be turned off from Home Assistant.
 
 ## [2026.6.3] - 2026-06-27
 

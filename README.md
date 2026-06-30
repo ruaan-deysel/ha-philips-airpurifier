@@ -72,7 +72,7 @@ This integration includes automatic reconnection attempts, but they may not alwa
 
 1. **Add Repository**: Click the button below to add this repository to HACS:
 
-   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Toonvish&repository=ha-philips-airpurifier&category=integration)
+   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ruaan-deysel&repository=ha-philips-airpurifier&category=integration)
 
 2. **Install**: Search for "Philips AirPurifier" in HACS and install it
 3. **Restart**: Restart Home Assistant
@@ -203,6 +203,12 @@ If your device changes IP addresses:
 - Models with `C` suffix indicate combo (2-in-1) variants where applicable
 - AMF series are dedicated 2-in-1 air purifier and humidifier devices
 - CX and HU series are dedicated humidifiers
+
+**CX7550 Oscillating Fan Notes:**
+
+- **Initial setup requires the Philips Air app**: the CX7550 must first be joined to your Wi-Fi network with the official Philips Air mobile app. Once it is on the network this integration controls it entirely locally over CoAP — no cloud or app is needed for day-to-day use.
+- **Push-only firmware**: the `AWS_Philips_AIR_Combo` firmware never answers a direct status read and only pushes updates on a real state change. The integration handles this automatically by briefly toggling the display backlight to elicit an update, so the backlight may flicker momentarily on (re)connect.
+- **Display in standby (firmware limitation)**: while the fan is powered **off**, the device forces its display to a dim standby level and ignores "off" commands. As a result the display backlight **cannot be turned off from Home Assistant while the fan is off** — it can be controlled normally while the fan is running. A separate **Standby temperature display** switch toggles whether the temperature readout is shown in standby.
 
 ## Available Entities
 
