@@ -172,6 +172,9 @@
       "standby_sensors": {
         "name": "Stand-by sensoren"
       },
+      "standby_temperature": {
+        "name": "Stand-by temperatuurweergave"
+      },
       "auto_plus": {
         "name": "Auto plus"
       },
