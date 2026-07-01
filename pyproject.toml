@@ -5,7 +5,7 @@ description = "Home Assistant integration for Philips Air Purifiers via CoAP"
 requires-python = ">=3.14.2"
 license = {text = "MIT"}
 dependencies = [
-    "philips-airctrl==1.1.0",
+    "philips-airctrl==1.2.0",
 ]
 
 [project.optional-dependencies]

@@ -27,3 +27,14 @@ When an upstream method is missing:
 1. Implement graceful handling in integration code if possible (feature unavailable, fallback, or clear error).
 2. Open or reference an upstream issue in `ruaan-deysel/philips-airctrl` for the missing API.
 3. Avoid introducing custom transport logic in this repository.
+
+## Known API (v1.2.0+)
+
+The following capabilities were added in **`philips-airctrl==1.2.0`** and are now the required way to handle push-only firmware:
+
+| Method | Notes |
+| ------ | ----- |
+| `CoAPClient.get_device_info()` | Reads the plaintext `/sys/dev/info` resource without the encrypted sync handshake. Use for device identification before committing to a full encrypted session. |
+| `CoAPClient.create(host, sync=False)` | Creates the aiocoap transport context without running `_sync()`. Required before calling `get_device_info()` on devices that never answer the encrypted status path (e.g. CX7550 `AWS_Philips_AIR_Combo`). |
+
+Do **not** import or use raw `aiocoap` primitives (`Context`, `Message`, `Unreliable`) in `client.py` or `coordinator.py` — use the methods above instead.
