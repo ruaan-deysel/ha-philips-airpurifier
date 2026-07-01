@@ -86,3 +86,11 @@ def test_default_fields() -> None:
 def test_ac2210_uses_ac2221_device_config() -> None:
     """Test AC2210 model family reuses AC2221 device configuration."""
     assert DEVICE_MODELS[FanModel.AC2210] is DEVICE_MODELS[FanModel.AC2221]
+
+
+def test_cx7550_registered() -> None:
+    """Test CX7550 is registered as a Gen3 fan-only device."""
+    config = DEVICE_MODELS[FanModel.CX7550]
+    assert config.api_generation is ApiGeneration.GEN3
+    assert config.create_fan is True
+    assert config.heaters == []

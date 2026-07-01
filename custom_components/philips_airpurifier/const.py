@@ -126,6 +126,7 @@ class FanModel(StrEnum):
     CX3120 = "CX3120"
     CX3550 = "CX3550"
     CX5120 = "CX5120"
+    CX7550 = "CX7550"
     HU1509 = "HU1509"
     HU1510 = "HU1510"
     HU4209_00 = "HU4209/00"
@@ -146,6 +147,8 @@ class PresetMode:
     SPEED_8 = "speed_8"
     SPEED_9 = "speed_9"
     SPEED_10 = "speed_10"
+    SPEED_11 = "speed_11"
+    SPEED_12 = "speed_12"
     ALLERGEN = "allergen"
     AUTO = "auto"
     AUTO_GENERAL = "auto_general"
@@ -176,6 +179,8 @@ class PresetMode:
         SPEED_8: "mdi:fan",
         SPEED_9: "mdi:fan",
         SPEED_10: "mdi:fan",
+        SPEED_11: "mdi:fan",
+        SPEED_12: "mdi:fan",
         ALLERGEN: "mdi:flower-pollen",
         AUTO: "mdi:autorenew",
         AUTO_GENERAL: "mdi:autorenew",
@@ -285,6 +290,7 @@ class FanAttributes(StrEnum):
     MIN_TEMPERATURE = "min_temperature"
     MAX_TEMPERATURE = "max_temperature"
     STANDBY_SENSORS = "standby_sensors"
+    STANDBY_TEMP_DISPLAY = "standby_temperature"
     AUTO_PLUS = "auto_plus"
     WATER_TANK = "water_tank"
     AUTO_QUICKDRY_MODE = "auto_quickdry_mode"
@@ -375,6 +381,10 @@ class PhilipsApi:
         SWITCH_ON: 45,
         SWITCH_OFF: 0,
     }
+    OSCILLATION_MAP4 = {
+        SWITCH_ON: 80,
+        SWITCH_OFF: 0,
+    }
 
     # the AC1715 seems to follow a new scheme, this should later be refactored
     NEW_NAME = "D01-03"
@@ -430,6 +440,7 @@ class PhilipsApi:
     NEW2_REMAINING_TIME = "D03211"
     NEW2_TARGET_TEMP = "D0310E"
     NEW2_STANDBY_SENSORS = "D03134"
+    NEW2_STANDBY_TEMP_DISPLAY = "D03133"  # CX7550: show temperature in standby
     NEW2_AUTO_PLUS_AI = "D03180"
     NEW2_PREFERRED_INDEX = "D0312A#1"
     NEW2_GAS_PREFERRED_INDEX = "D0312A#2"
@@ -832,6 +843,12 @@ SWITCH_TYPES: dict[str, SwitchDescription] = {
     },
     PhilipsApi.NEW2_STANDBY_SENSORS: {
         FanAttributes.LABEL: FanAttributes.STANDBY_SENSORS,
+        SWITCH_ON: 1,
+        SWITCH_OFF: 0,
+    },
+    PhilipsApi.NEW2_STANDBY_TEMP_DISPLAY: {
+        FanAttributes.LABEL: FanAttributes.STANDBY_TEMP_DISPLAY,
+        CONF_ENTITY_CATEGORY: EntityCategory.CONFIG,
         SWITCH_ON: 1,
         SWITCH_OFF: 0,
     },

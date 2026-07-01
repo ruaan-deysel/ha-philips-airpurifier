@@ -138,7 +138,8 @@ If your device changes IP addresses:
 | **Air Purifiers** | 50+ models     | AC0650, AC0850, AC0950, AC1214, AC1715, AC2729, AC2889, AC2936, AC3033, AC3055, AC3210, AC3259, AC3420, AC3737, AC3829, AC3854, AC3858, AC4220, AC4550, AC5659 |
 | **2-in-1 Combos** | 7 models       | AC0850C series, AMF765, AMF870                                                                                                                                 |
 | **Humidifiers**   | 5 models       | CX3120, CX3550, CX5120, HU1509, HU1510, HU5710                                                                                                                 |
-| **Total**         | **62+ models** | **28 series**                                                                                                                                                  |
+| **Fans**          | 1 model        | CX7550                                                                                                                                                          |
+| **Total**         | **63+ models** | **29 series**                                                                                                                                                  |
 
 ### Air Purifiers
 
@@ -183,6 +184,12 @@ If your device changes IP addresses:
 | **HU1509**   | HU1509, HU1510 | Compact Humidifier  |
 | **HU5710**   | HU5710         | Premium Humidifier  |
 
+### Fans
+
+| Model Series | Variants  | Type            |
+| ------------ | --------- | --------------- |
+| **CX7550**   | CX7550/01 | Oscillating Fan |
+
 ### Special Variants & Notes
 
 **AC0850 Series Special Variants:**
@@ -196,6 +203,12 @@ If your device changes IP addresses:
 - Models with `C` suffix indicate combo (2-in-1) variants where applicable
 - AMF series are dedicated 2-in-1 air purifier and humidifier devices
 - CX and HU series are dedicated humidifiers
+
+**CX7550 Oscillating Fan Notes:**
+
+- **Initial setup requires the Philips Air app**: the CX7550 must first be joined to your Wi-Fi network with the official Philips Air mobile app. Once it is on the network, this integration controls it entirely locally over CoAP — no cloud or app is needed for day-to-day use.
+- **Push-only firmware**: the `AWS_Philips_AIR_Combo` firmware never answers a direct status read and only pushes updates on a real state change. The integration handles this automatically by briefly toggling the display backlight to elicit an update, so the backlight may flicker momentarily on (re)connect.
+- **Display in standby (firmware limitation)**: while the fan is powered **off**, the device forces its display to a dim standby level and ignores "off" commands. As a result, the display backlight **cannot be turned off from Home Assistant while the fan is off** — it can be controlled normally while the fan is running. A separate **Standby temperature display** switch toggles whether the temperature readout is shown in standby.
 
 ## Available Entities
 
