@@ -980,7 +980,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "codespell", marker = "extra == 'dev'" },
-    { name = "homeassistant", marker = "extra == 'dev'", specifier = ">=2026.6.4" },
+    { name = "homeassistant", marker = "extra == 'dev'", specifier = ">=2026.7.0" },
     { name = "philips-airctrl", specifier = "==1.2.0" },
     { name = "pyright", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
