@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncIterator
-import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -31,27 +29,19 @@ async def _aiter_raises(exc: Exception) -> AsyncIterator[Any]:
     raise exc
 
 
-async def test_async_fetch_device_info_parses_payload() -> None:
-    """Test sys/dev/info is fetched and parsed as JSON."""
+async def test_async_fetch_device_info_returns_library_info() -> None:
+    """Device info comes from CoAPClient.get_device_info with sync disabled."""
     info = {"modelid": "CX7550/01", "name": "Büro", "device_id": "abc"}
-    response = MagicMock()
-    response.payload = json.dumps(info).encode()
-    future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
-    future.set_result(response)
-    handle = MagicMock()
-    handle.response = future
-    context = MagicMock()
-    context.request = MagicMock(return_value=handle)
-    context.shutdown = AsyncMock()
+    client = MagicMock()
+    client.get_device_info = AsyncMock(return_value=info)
+    client.shutdown = AsyncMock()
+    create = AsyncMock(return_value=client)
 
-    with patch(
-        f"{_CLIENT}.Context.create_client_context",
-        AsyncMock(return_value=context),
-    ):
-        result = await async_fetch_device_info("1.2.3.4")
+    result = await async_fetch_device_info("1.2.3.4", create_client=create)
 
     assert result == info
-    context.shutdown.assert_awaited()
+    create.assert_awaited_once_with("1.2.3.4", sync=False)
+    client.shutdown.assert_awaited()
 
 
 async def test_async_fetch_status_with_nudge_success() -> None:

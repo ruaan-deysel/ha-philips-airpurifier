@@ -4,12 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import logging
 from typing import Any
 
-from aiocoap import Context, Message, Unreliable
-from aiocoap.numbers.codes import GET
 from philips_airctrl import CoAPClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,25 +48,25 @@ async def async_fetch_status(
             await client.shutdown()
 
 
-async def async_fetch_device_info(host: str, port: int = 5683, timeout: float = 15) -> dict[str, Any]:
+async def async_fetch_device_info(
+    host: str,
+    timeout: float = 15,
+    create_client: Any | None = None,
+) -> dict[str, Any]:
     """Fetch the plaintext ``sys/dev/info`` resource (model id, name, device id).
 
-    This resource is served without the CoAP Observe mechanism and responds even
-    on firmwares that never answer the encrypted ``sys/dev/status`` read, so it
-    is used to identify a device whose status cannot be read directly.
+    ``CoAPClient.create(host, sync=False)`` skips the encrypted sync handshake,
+    which is required for push-only firmware that never answers the
+    ``sys/dev/status`` read, so this identifies a device whose status cannot be
+    read directly.
     """
-    context = await Context.create_client_context()
+    creator = create_client or CoAPClient.create
+    client = await asyncio.wait_for(creator(host, sync=False), timeout=timeout)
     try:
-        request = Message(
-            code=GET,
-            transport_tuning=Unreliable,
-            uri=f"coap://{host}:{port}/sys/dev/info",
-        )
-        response = await asyncio.wait_for(context.request(request).response, timeout=timeout)
-        return json.loads(response.payload.decode())
+        return await client.get_device_info()
     finally:
         with contextlib.suppress(Exception):
-            await context.shutdown()
+            await client.shutdown()
 
 
 async def async_fetch_status_with_nudge(
