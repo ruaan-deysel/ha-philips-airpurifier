@@ -1012,7 +1012,7 @@ dev = [
 requires-dist = [
     { name = "codespell", marker = "extra == 'dev'" },
     { name = "homeassistant", marker = "extra == 'dev'", specifier = ">=2026.6.4" },
-    { name = "philips-airctrl", specifier = "==1.1.0" },
+    { name = "philips-airctrl", specifier = "==1.2.0" },
     { name = "pyright", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
@@ -1492,7 +1492,7 @@ wheels = [
 
 [[package]]
 name = "philips-airctrl"
-version = "1.1.0"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiocoap" },
@@ -1503,9 +1503,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "tabulate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/56/59f46b3c6c2b76df66943256bc2a18e4d100b2912eaf15ac7a03c59a35b4/philips_airctrl-1.1.0.tar.gz", hash = "sha256:16d7fe45139b1bf3b86da9fcc62b55c2e6795fbd15d8cb887ab72221c69cc3ee", size = 86898, upload-time = "2026-05-29T00:19:42.218Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/c0/3aca39aeaa8dd104e24aa80bbb3c0d7aeb37995d4b431d06aeb99960a6ab/philips_airctrl-1.2.0.tar.gz", hash = "sha256:82f672786e9a4175b6648858ebaca23f31839c5fc632d23f39236b090a0ce2c0", size = 88723, upload-time = "2026-07-01T23:40:44.036Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/ed/444baa9dd28a5e3f53b21b10c7e9098f38f8485e6a9ffb097e19da07ba67/philips_airctrl-1.1.0-py3-none-any.whl", hash = "sha256:7906001b35999dfccd41f7e140c53f23201f124536ca037fe1b1349a7afc3642", size = 23900, upload-time = "2026-05-29T00:19:40.836Z" },
+    { url = "https://files.pythonhosted.org/packages/23/eb/bc22af9591b96da2d6f0433f84e05a7419a917bb1bc2feaafaecf78cde2e/philips_airctrl-1.2.0-py3-none-any.whl", hash = "sha256:87696f0098b3a8ad4259a46b236479825db4386e02020a4ffee9f3bc8cdbcd73", size = 24536, upload-time = "2026-07-01T23:40:42.658Z" },
 ]
 
 [[package]]
@@ -1543,11 +1543,11 @@ wheels = [
 
 [[package]]
 name = "pip"
-version = "26.1"
+version = "26.1.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/73/7e/d2b04004e1068ad4fdfa2f227b839b5d03e602e47cdbbf49de71137c9546/pip-26.1.tar.gz", hash = "sha256:81e13ebcca3ffa8cc85e4deff5c27e1ee26dea0aa7fc2f294a073ac208806ff3", size = 1840316, upload-time = "2026-04-26T21:00:05.406Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/91/47e7d486260f618783899587af63ccf7980fb60245c3e63dd4571c6b57ad/pip-26.1.2.tar.gz", hash = "sha256:f49cd134c61cf2fd75e0ce2676db03e4054504a5a4986d00f8299ae632dc4605", size = 1840799, upload-time = "2026-05-31T17:33:58.56Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/7a/be4bd8bcbb24ea475856dd68159d78b03b2bb53dae369f69c9606b8888f5/pip-26.1-py3-none-any.whl", hash = "sha256:4e8486d821d814b77319acb7b9e8bf5a4ee7590a643e7cb21029f209be8573c1", size = 1812804, upload-time = "2026-04-26T21:00:03.194Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/95/6b5cb3461ea5673ba0995989746db58eb18b91b54dbf331e72f569540946/pip-26.1.2-py3-none-any.whl", hash = "sha256:382ff9f685ee3bc25864f820aa50505825f10f5458ffff07e30a6d96e5715cab", size = 1813144, upload-time = "2026-05-31T17:33:56.772Z" },
 ]
 
 [[package]]
