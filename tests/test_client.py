@@ -44,6 +44,29 @@ async def test_async_fetch_device_info_returns_library_info() -> None:
     client.shutdown.assert_awaited()
 
 
+async def test_async_fetch_device_info_shuts_down_on_read_error() -> None:
+    """A failing get_device_info still shuts the client down and propagates."""
+    client = MagicMock()
+    client.get_device_info = AsyncMock(side_effect=RuntimeError("read rejected"))
+    client.shutdown = AsyncMock()
+    create = AsyncMock(return_value=client)
+
+    with pytest.raises(RuntimeError, match="read rejected"):
+        await async_fetch_device_info("1.2.3.4", create_client=create)
+
+    client.shutdown.assert_awaited()
+
+
+async def test_async_fetch_device_info_propagates_create_failure() -> None:
+    """A failing client creation propagates and no client is created to shut down."""
+    create = AsyncMock(side_effect=TimeoutError("connect timed out"))
+
+    with pytest.raises(TimeoutError, match="connect timed out"):
+        await async_fetch_device_info("1.2.3.4", create_client=create)
+
+    create.assert_awaited_once_with("1.2.3.4", sync=False)
+
+
 async def test_async_fetch_status_with_nudge_success() -> None:
     """Test the observe-plus-nudge fetch returns the first pushed status."""
     status = {"D01S05": "CX7550/01", "D03102": 1}
