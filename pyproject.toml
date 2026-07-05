@@ -37,6 +37,10 @@ dev = [
 testpaths = ["tests"]
 asyncio_mode = "auto"
 norecursedirs = [".git", "config"]
+markers = [
+    "unit: Fast, isolated tests with no external dependencies",
+    "integration: Tests exercising the coordinator, time service, etc.",
+]
 
 [tool.mypy]
 python_version = "3.14"

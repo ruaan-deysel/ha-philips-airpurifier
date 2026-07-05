@@ -65,7 +65,9 @@
               "speed_7": "Speed 7",
               "speed_8": "Speed 8",
               "speed_9": "Speed 9",
-              "speed_10": "Speed 10"
+              "speed_10": "Speed 10",
+              "speed_11": "Speed 11",
+              "speed_12": "Speed 12"
             }
           }
         }
@@ -230,6 +232,9 @@
       "standby_sensors": {
         "name": "Standby sensors"
       },
+      "standby_temperature": {
+        "name": "Standby temperature display"
+      },
       "auto_plus": {
         "name": "Auto plus"
       },
@@ -316,7 +321,9 @@
           "speed_7": "Speed 7",
           "speed_8": "Speed 8",
           "speed_9": "Speed 9",
-          "speed_10": "Speed 10"
+          "speed_10": "Speed 10",
+          "speed_11": "Speed 11",
+          "speed_12": "Speed 12"
         }
       },
       "timer": {

@@ -104,10 +104,17 @@ async def test_user_flow_timeout(
     mock_coap_client_config_flow.get_status.side_effect = TimeoutError
 
     # The timeout wraps the create+get_status calls. The simplest approach:
-    # make CoAPClient.create raise TimeoutError.
-    with patch(
-        "custom_components.philips_airpurifier.config_flow.CoAPClient",
-    ) as mock_cls:
+    # make CoAPClient.create raise TimeoutError. The nudge fallback probes
+    # sys/dev/info; stub it to fail so the flow falls back to cannot_connect.
+    with (
+        patch(
+            "custom_components.philips_airpurifier.config_flow.CoAPClient",
+        ) as mock_cls,
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_device_info",
+            AsyncMock(side_effect=TimeoutError),
+        ),
+    ):
         mock_cls.create = AsyncMock(side_effect=TimeoutError)
 
         result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
@@ -120,6 +127,105 @@ async def test_user_flow_timeout(
         assert result["type"] is FlowResultType.FORM
         assert result["step_id"] == "user"
         assert result["errors"] == {CONF_HOST: "cannot_connect"}
+
+
+async def test_user_flow_status_nudge_fallback(
+    hass: HomeAssistant,
+    mock_coap_client_config_flow: AsyncMock,
+) -> None:
+    """Test user flow recovers via nudge when the status read times out.
+
+    Devices like the CX7550 never answer a status read; the flow falls back to
+    identifying the model via sys/dev/info and fetching status with a nudge.
+    """
+    cx7550_status = {
+        PhilipsApi.NEW2_MODEL_ID: "CX7550/01",
+        PhilipsApi.NEW2_NAME: "Büro",
+        PhilipsApi.DEVICE_ID: TEST_DEVICE_ID,
+        PhilipsApi.WIFI_VERSION: "AWS_Philips_AIR_Combo@86",
+        PhilipsApi.NEW2_POWER: 1,
+    }
+    with (
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_status",
+            AsyncMock(side_effect=TimeoutError),
+        ),
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_device_info",
+            AsyncMock(return_value={"modelid": "CX7550/01", "name": "Büro"}),
+        ),
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_status_with_nudge",
+            AsyncMock(return_value=cx7550_status),
+        ),
+        # Entry setup for a nudge device also fetches via nudge in the coordinator.
+        patch(
+            "custom_components.philips_airpurifier.coordinator.async_fetch_status_with_nudge",
+            AsyncMock(return_value=cx7550_status),
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={CONF_HOST: TEST_HOST},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_MODEL] == "CX7550"
+
+
+async def test_user_flow_nudge_fetch_fails(
+    hass: HomeAssistant,
+) -> None:
+    """Test the flow aborts cleanly when the nudge-based fetch fails."""
+    with (
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_status",
+            AsyncMock(side_effect=TimeoutError),
+        ),
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_device_info",
+            AsyncMock(return_value={"modelid": "CX7550/01", "name": "Büro"}),
+        ),
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_status_with_nudge",
+            AsyncMock(side_effect=Exception("nudge failed")),
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={CONF_HOST: TEST_HOST},
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+    assert result["errors"] == {CONF_HOST: "cannot_connect"}
+
+
+async def test_user_flow_nudge_not_supported_model(
+    hass: HomeAssistant,
+) -> None:
+    """Test timeout + a non-nudge model falls back to cannot_connect."""
+    with (
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_status",
+            AsyncMock(side_effect=TimeoutError),
+        ),
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_device_info",
+            AsyncMock(return_value={"modelid": "AC3858/51", "name": "Living Room"}),
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={CONF_HOST: TEST_HOST},
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+    assert result["errors"] == {CONF_HOST: "cannot_connect"}
 
 
 async def test_user_flow_unknown_error(
@@ -299,9 +405,15 @@ async def test_dhcp_discovery_success(
 
 async def test_dhcp_discovery_timeout(hass: HomeAssistant) -> None:
     """Test DHCP discovery with timeout aborts as cannot_connect."""
-    with patch(
-        "custom_components.philips_airpurifier.config_flow.CoAPClient",
-    ) as mock_cls:
+    with (
+        patch(
+            "custom_components.philips_airpurifier.config_flow.CoAPClient",
+        ) as mock_cls,
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_device_info",
+            AsyncMock(side_effect=TimeoutError),
+        ),
+    ):
         mock_cls.create = AsyncMock(side_effect=TimeoutError)
 
         result = await hass.config_entries.flow.async_init(
@@ -639,9 +751,15 @@ async def test_reconfigure_flow_cannot_connect(
     )
     entry.add_to_hass(hass)
 
-    with patch(
-        "custom_components.philips_airpurifier.config_flow.CoAPClient",
-    ) as mock_cls:
+    with (
+        patch(
+            "custom_components.philips_airpurifier.config_flow.CoAPClient",
+        ) as mock_cls,
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_device_info",
+            AsyncMock(side_effect=TimeoutError),
+        ),
+    ):
         mock_cls.create = AsyncMock(side_effect=TimeoutError)
 
         result = await hass.config_entries.flow.async_init(

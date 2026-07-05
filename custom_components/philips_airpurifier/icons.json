@@ -36,7 +36,9 @@
               "speed_7": "mdi:fan",
               "speed_8": "mdi:fan",
               "speed_9": "mdi:fan",
-              "speed_10": "mdi:fan"
+              "speed_10": "mdi:fan",
+              "speed_11": "mdi:fan",
+              "speed_12": "mdi:fan"
             }
           }
         }
@@ -162,6 +164,9 @@
       "standby_sensors": {
         "default": "mdi:power-settings"
       },
+      "standby_temperature": {
+        "default": "mdi:thermometer"
+      },
       "auto_plus": {
         "default": "mdi:format-annotation-plus"
       },
@@ -248,7 +253,9 @@
           "speed_7": "mdi:fan",
           "speed_8": "mdi:fan",
           "speed_9": "mdi:fan",
-          "speed_10": "mdi:fan"
+          "speed_10": "mdi:fan",
+          "speed_11": "mdi:fan",
+          "speed_12": "mdi:fan"
         }
       },
       "timer": {

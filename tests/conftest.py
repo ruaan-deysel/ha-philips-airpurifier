@@ -68,9 +68,11 @@ def mock_coap_client() -> Generator[AsyncMock]:
 def mock_coap_client_config_flow() -> Generator[AsyncMock]:
     """Return a mocked CoAP client for config flow tests.
 
-    Patches both the config-flow client and the integration setup client (plus
-    the observe start) so that when a flow creates a config entry, the automatic
-    setup performed by the test harness does not open a real network socket.
+    Patches the config-flow client, the integration setup client, and the
+    coordinator's own client helper (plus the observe start) so that when a flow
+    creates a config entry, the automatic setup performed by the test harness —
+    including the nudge refresh, which recreates the coordinator client — does
+    not open a real network socket.
     """
     client = AsyncMock()
     client.get_status = AsyncMock(return_value=(MOCK_STATUS_GEN1.copy(), 60))
@@ -85,6 +87,10 @@ def mock_coap_client_config_flow() -> Generator[AsyncMock]:
         patch(
             "custom_components.philips_airpurifier.CoAPClient",
         ) as mock_setup_client_cls,
+        patch(
+            "custom_components.philips_airpurifier.coordinator.async_create_client",
+            AsyncMock(return_value=client),
+        ),
         patch(
             "custom_components.philips_airpurifier.coordinator.PhilipsAirPurifierCoordinator._start_observing",
         ),

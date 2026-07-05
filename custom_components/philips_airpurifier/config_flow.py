@@ -15,7 +15,11 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
-from .client import async_fetch_status
+from .client import (
+    async_fetch_device_info,
+    async_fetch_status,
+    async_fetch_status_with_nudge,
+)
 from .const import CONF_DEVICE_ID, CONF_MAC, CONF_MODEL, CONF_STATUS, DOMAIN, PhilipsApi
 from .device_models import DEVICE_MODELS
 from .helpers import extract_model, extract_name
@@ -72,11 +76,48 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.debug("got status")
             return status
         except TimeoutError:
+            # Some firmwares never answer a status read and only push status on a
+            # state change. Identify the model via the plaintext sys/dev/info
+            # resource and, if it declares a status nudge, retry with that.
+            nudged = await self._async_probe_host_with_nudge(host)
+            if nudged is not None:
+                return nudged
             _LOGGER.warning(r"Timeout, host %s doesn't answer", self._host)
             raise
         except Exception as ex:
             _LOGGER.warning(r"Failed to connect: %s", ex)
             raise CannotConnect from ex
+
+    async def _async_probe_host_with_nudge(self, host: str) -> dict[str, Any] | None:
+        """Retry the status read with a nudge for devices that need one.
+
+        Returns the status dict on success, or None if the device's model does
+        not declare a status nudge (so the caller falls back to the timeout).
+        """
+        try:
+            info = await async_fetch_device_info(host)
+        except Exception as ex:  # noqa: BLE001
+            _LOGGER.debug("Could not read sys/dev/info from %s: %s", host, ex)
+            return None
+
+        # sys/dev/info reports the model under the plaintext "modelid" key.
+        model = str(info.get(PhilipsApi.MODEL_ID, ""))[:9]
+        config = DEVICE_MODELS.get(model) or DEVICE_MODELS.get(model[:6])
+        if config is None or config.status_nudge is None:
+            return None
+
+        _LOGGER.info("Status read timed out for %s; retrying with nudge", model)
+        try:
+            return await async_fetch_status_with_nudge(
+                host,
+                config.status_nudge,
+                connect_timeout=30,
+                status_timeout=30,
+                create_client=CoAPClient.create,
+            )
+        except Exception as ex:  # noqa: BLE001
+            _LOGGER.warning("Nudge-based status read failed for %s: %s", host, ex)
+            return None
 
     def _async_find_matching_entry(self) -> config_entries.ConfigEntry | None:
         """Find an existing entry for the discovered device by MAC or host."""

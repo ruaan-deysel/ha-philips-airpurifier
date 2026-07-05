@@ -1532,6 +1532,123 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
         selects=[PhilipsApi.NEW2_TIMER2],
     ),
     # =========================================================================
+    # CX7550
+    # =========================================================================
+    # Fan-only Gen3 device (oscillating tower fan). MODE_A (D0310A) is always 1;
+    # everything is driven through MODE_B (D0310C). MODE_C/FAN_SPEED (D0310D) is
+    # the read-only actual speed that ramps toward the setpoint, so the patterns
+    # only set MODE_A + MODE_B.
+    #
+    # MODE_B values confirmed from device captures:
+    #   - manual speeds 1..11 -> 1..11 (one-to-one); speed 12 (max) -> 82
+    #   - auto adapt -> 0, sleep -> 17, natural -> -126
+    # The top manual speed reports the special code 82 (not 12). There is no
+    # separate turbo preset on this model -- max speed (12) IS the boost.
+    # Oscillation D0320F: off -> 0, on -> 80 (OSCILLATION_MAP4).
+    # Display backlight D03105: off -> 0, low -> 115, full -> 123
+    # (NEW2_DISPLAY_BACKLIGHT4).
+    FanModel.CX7550: DeviceModelConfig(
+        api_generation=ApiGeneration.GEN3,
+        preset_modes={
+            PresetMode.AUTO: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 0,
+            },
+            PresetMode.SLEEP: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 17,
+            },
+            PresetMode.NATURAL: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: -126,
+            },
+        },
+        speeds={
+            PresetMode.SPEED_1: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 1,
+            },
+            PresetMode.SPEED_2: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 2,
+            },
+            PresetMode.SPEED_3: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 3,
+            },
+            PresetMode.SPEED_4: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 4,
+            },
+            PresetMode.SPEED_5: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 5,
+            },
+            PresetMode.SPEED_6: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 6,
+            },
+            PresetMode.SPEED_7: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 7,
+            },
+            PresetMode.SPEED_8: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 8,
+            },
+            PresetMode.SPEED_9: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 9,
+            },
+            PresetMode.SPEED_10: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 10,
+            },
+            PresetMode.SPEED_11: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                PhilipsApi.NEW2_MODE_B: 11,
+            },
+            PresetMode.SPEED_12: {
+                PhilipsApi.NEW2_POWER: 1,
+                PhilipsApi.NEW2_MODE_A: 1,
+                # Top speed reports the special max code 82, not 12.
+                PhilipsApi.NEW2_MODE_B: 82,
+            },
+        },
+        oscillation={
+            PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP4,
+        },
+        lights=[PhilipsApi.NEW2_DISPLAY_BACKLIGHT4],
+        switches=[PhilipsApi.NEW2_BEEP, PhilipsApi.NEW2_STANDBY_TEMP_DISPLAY],
+        selects=[PhilipsApi.NEW2_TIMER2],
+        unavailable_sensors=[PhilipsApi.NEW2_FAN_SPEED, PhilipsApi.NEW2_GAS],
+        # This firmware never answers a status read; it only pushes status to
+        # observers on a real state change. Toggle the display backlight
+        # (D03105) to force the push. The two values are a (transient, resting)
+        # pair: the coordinator nudges through the transient value, then ends on
+        # the user's last-known backlight value (falling back to this resting
+        # value, "low", on first contact) so the nudge does not force the
+        # display back on every reconnect. See coordinator._build_status_nudge.
+        status_nudge=[
+            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 0),
+            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 115),
+        ],
+    ),
+    # =========================================================================
     # HU1509 / HU1510
     # =========================================================================
     FanModel.HU1509: _CONFIG_HU1509,
