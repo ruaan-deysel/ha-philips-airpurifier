@@ -17,7 +17,7 @@ dev = [
     # scripts/lint-check, scripts/type-check and the lint CI workflow, which all
     # invoke `uv run ruff` / `uv run pyright`. ruff is pinned to the
     # pre-commit-config version to avoid format drift between the two.
-    "ruff==0.15.20",
+    "ruff==0.16.0",
     "pyright",
     # Linting tools for script/yaml-check, script/spell-check and related
     # scripts from the script/ toolchain.
