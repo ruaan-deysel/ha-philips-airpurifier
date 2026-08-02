@@ -19,6 +19,7 @@ from homeassistant.const import (
     PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
+    UnitOfDensity,
     UnitOfTemperature,
     UnitOfTime,
 )
@@ -604,7 +605,7 @@ SENSOR_TYPES: dict[str, SensorDescription] = {
     PhilipsApi.PM25: {
         ATTR_DEVICE_CLASS: SensorDeviceClass.PM25,
         FanAttributes.LABEL: FanAttributes.PM25,
-        FanAttributes.UNIT: CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        FanAttributes.UNIT: UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
         ATTR_STATE_CLASS: SensorStateClass.MEASUREMENT,
     },
     PhilipsApi.NEW_PM25: {
