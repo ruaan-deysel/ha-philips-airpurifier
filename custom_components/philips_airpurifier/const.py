@@ -389,7 +389,7 @@ class PhilipsApi:
     # D0320F: 0 is off, 30..350 is the oscillation angle in degrees. The "on"
     # value below is only the fallback used when no angle has been observed
     # yet -- the fan entity restores the last reported angle when available.
-    OSCILLATION_MAP5 = {
+    OSCILLATION_MAP5: dict[str, int] = {
         SWITCH_ON: 90,
         SWITCH_OFF: 0,
     }

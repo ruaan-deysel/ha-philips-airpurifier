@@ -209,7 +209,7 @@ If your device changes IP addresses:
 - The AMF models keep the rotation angle and the on/off state in a single device value, which this integration surfaces in two ways:
   - the **Oscillation** number entity sets the angle directly — `0°` stops the rotation, `30°` to `350°` (in 5° steps) start it at that angle;
   - the fan entity's **oscillation** toggle (`fan.oscillate`) starts and stops the rotation without having to pick an angle.
-- Turning the rotation off and on again restores the last angle the device reported. If no angle has been seen yet (for example right after a Home Assistant restart), switching it on uses 90°.
+- Turning the rotation off and on again restores the last angle the device reported. If no angle has been seen yet (for example, right after a Home Assistant restart), switching it on uses 90°.
 
 **CX7550 Oscillating Fan Notes:**
 
