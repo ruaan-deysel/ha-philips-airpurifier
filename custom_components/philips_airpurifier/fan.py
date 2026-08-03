@@ -198,13 +198,13 @@ class PhilipsFan(PhilipsAirPurifierEntity, FanEntity):  # pragma: no cover
         if self._oscillation_key is None or self._oscillation_values is None:
             return
 
-        off = self._oscillation_values[SWITCH_OFF]
+        off: Any = self._oscillation_values[SWITCH_OFF]
 
         if self._oscillation_is_angle:
             # Capture the angle the device is rotating at right now: the write
             # below overwrites it, and Home Assistant may not have read the
             # oscillating property since the device last reported a new angle.
-            current = self._device_status.get(self._oscillation_key)
+            current: Any | None = self._device_status.get(self._oscillation_key)
             if current is not None and current != off:
                 self._last_oscillation_value = current
 
