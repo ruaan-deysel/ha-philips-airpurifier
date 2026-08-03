@@ -464,6 +464,27 @@ async def test_fan_oscillate_noop_without_oscillation() -> None:
     coordinator.async_set_control_value.assert_not_called()
 
 
+async def test_fan_oscillate_keeps_fixed_on_value_for_legacy_maps() -> None:
+    """Test fixed-code models always write their documented on-value."""
+    # CX3120 uses OSCILLATION_MAP3 (on -> 45). The device reports 60 here: a
+    # value that must never be written back as if it switched oscillation on.
+    entity, coordinator = _make_fan_entity(
+        "CX3120",
+        {"D03102": 1, "D0310A": 3, "D0310C": 0, "D0320F": 60},
+    )
+    entity._handle_coordinator_update = lambda: None
+
+    assert entity.oscillating is True
+    assert entity._last_oscillation_value is None
+
+    await entity.async_oscillate(False)
+    coordinator.async_set_control_value.assert_awaited_with("D0320F", 0)
+
+    coordinator.async_set_control_value.reset_mock()
+    await entity.async_oscillate(True)
+    coordinator.async_set_control_value.assert_awaited_with("D0320F", 45)
+
+
 async def test_fan_amf870_supports_oscillate() -> None:
     """Test the AMF870 fan exposes the oscillate feature."""
     entity, _ = _make_fan_entity("AMF870", {"D03102": 1, "D0310C": 2, "D0320F": 0})

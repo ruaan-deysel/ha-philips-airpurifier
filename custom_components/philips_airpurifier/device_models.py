@@ -1340,6 +1340,7 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
         oscillation={
             PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP5,
         },
+        oscillation_is_angle=True,
         unavailable_sensors=[PhilipsApi.NEW2_GAS],
     ),
     # =========================================================================
@@ -1371,6 +1372,7 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
         oscillation={
             PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP5,
         },
+        oscillation_is_angle=True,
     ),
     # =========================================================================
     # CX3120

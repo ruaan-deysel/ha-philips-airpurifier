@@ -79,6 +79,7 @@ def test_default_fields() -> None:
     assert config.unavailable_filters == []
     assert config.unavailable_sensors == []
     assert config.oscillation is None
+    assert config.oscillation_is_angle is False
     assert config.create_fan is True
     assert config.requires_mode_cycling is False
 
@@ -101,6 +102,7 @@ def test_amf765_rotation_controls() -> None:
     config = DEVICE_MODELS[FanModel.AMF765]
     assert PhilipsApi.NEW2_OSCILLATION in config.numbers
     assert config.oscillation == {PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP5}
+    assert config.oscillation_is_angle is True
 
 
 def test_amf870_rotation_controls() -> None:
@@ -109,3 +111,4 @@ def test_amf870_rotation_controls() -> None:
     assert PhilipsApi.NEW2_OSCILLATION in config.numbers
     assert PhilipsApi.NEW2_TARGET_TEMP in config.numbers
     assert config.oscillation == {PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP5}
+    assert config.oscillation_is_angle is True

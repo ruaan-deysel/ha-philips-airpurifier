@@ -66,9 +66,13 @@ class PhilipsFan(PhilipsAirPurifierEntity, FanEntity):  # pragma: no cover
         self._oscillation = model_config.oscillation
         self._oscillation_key: str | None = None
         self._oscillation_values: dict[str, Any] | None = None
-        # Last non-off value the device reported for the oscillation key. On
-        # models where that key holds the rotation angle (AMF765, AMF870) this
-        # is the angle to restore when oscillation is switched back on.
+        # Last non-off value the device reported for the oscillation key, and
+        # the angle to restore when oscillation is switched back on. Only
+        # tracked for models whose oscillation key holds the rotation angle:
+        # the fixed-code models are not assumed to report the value that has
+        # to be written to switch oscillation on, so writing a reported value
+        # back could set something other than "on".
+        self._oscillation_is_angle = model_config.oscillation_is_angle
         self._last_oscillation_value: Any | None = None
 
         # Set supported features
@@ -180,10 +184,10 @@ class PhilipsFan(PhilipsAirPurifierEntity, FanEntity):  # pragma: no cover
 
         oscillating = status != self._oscillation_values[SWITCH_OFF]
 
-        if oscillating:
+        if oscillating and self._oscillation_is_angle:
             # Home Assistant reads this property on every state write, so it is
-            # the one place that sees every status the device reports. Remember
-            # the value so async_oscillate can restore it rather than force the
+            # the one place that sees every angle the device reports. Remember
+            # it so async_oscillate can restore it rather than force the
             # generic "on" value over a user-picked rotation angle.
             self._last_oscillation_value = status
 
@@ -195,13 +199,14 @@ class PhilipsFan(PhilipsAirPurifierEntity, FanEntity):  # pragma: no cover
             return
 
         off = self._oscillation_values[SWITCH_OFF]
-        current = self._device_status.get(self._oscillation_key)
 
-        if current is not None and current != off:
+        if self._oscillation_is_angle:
             # Capture the angle the device is rotating at right now: the write
             # below overwrites it, and Home Assistant may not have read the
             # oscillating property since the device last reported a new angle.
-            self._last_oscillation_value = current
+            current = self._device_status.get(self._oscillation_key)
+            if current is not None and current != off:
+                self._last_oscillation_value = current
 
         if not oscillating:
             value = off
