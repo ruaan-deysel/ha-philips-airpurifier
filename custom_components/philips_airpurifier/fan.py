@@ -72,7 +72,7 @@ class PhilipsFan(PhilipsAirPurifierEntity, FanEntity):  # pragma: no cover
         # the fixed-code models are not assumed to report the value that has
         # to be written to switch oscillation on, so writing a reported value
         # back could set something other than "on".
-        self._oscillation_is_angle = model_config.oscillation_is_angle
+        self._oscillation_is_angle: bool = model_config.oscillation_is_angle
         self._last_oscillation_value: Any | None = None
 
         # Set supported features

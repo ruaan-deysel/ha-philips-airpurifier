@@ -18,11 +18,11 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
   `fan.oscillate` service and the oscillation toggle in the UI. The AMF765
   gains the same oscillation toggle — it kept the angle entity but never
   exposed the on/off control.
-- On the AMF family, where the angle and the on/off state share one device key,
-  switching oscillation back on now restores the rotation angle the device last
-  reported instead of overwriting it with a fixed value. Models whose
-  oscillation key is a fixed on/off code are unaffected and keep writing their
-  documented on-value.
+- On the **AMF765** and **AMF870**, where the angle and the on/off state share
+  one device key, switching oscillation back on now restores the rotation angle
+  the device last reported instead of overwriting it with a fixed value. Models
+  whose oscillation key is a fixed on/off code are unaffected and keep writing
+  their documented on-value.
 - The `oscillation` and `target_temperature` number entities are translated
   again in German, Dutch and Bulgarian. Their translation keys were misspelled
   (`oscillaton`, `target_temp`) and never matched `strings.json`, so those
