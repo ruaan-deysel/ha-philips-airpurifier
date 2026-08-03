@@ -208,6 +208,7 @@ class PhilipsFan(PhilipsAirPurifierEntity, FanEntity):  # pragma: no cover
             if current is not None and current != off:
                 self._last_oscillation_value = current
 
+        value: Any
         if not oscillating:
             value = off
         elif self._last_oscillation_value is not None:

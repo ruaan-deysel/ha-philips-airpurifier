@@ -20,9 +20,11 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
   exposed the on/off control.
 - On the **AMF765** and **AMF870**, where the angle and the on/off state share
   one device key, switching oscillation back on now restores the rotation angle
-  the device last reported instead of overwriting it with a fixed value. Models
-  whose oscillation key is a fixed on/off code are unaffected and keep writing
-  their documented on-value.
+  the device last reported instead of overwriting it with a fixed value. When no
+  angle has been reported yet — for example right after a Home Assistant restart
+  — it starts at the configured default of 90° instead. Models whose oscillation
+  key is a fixed on/off code are unaffected and keep writing their documented
+  on-value.
 - The `oscillation` and `target_temperature` number entities are translated
   again in German, Dutch and Bulgarian. Their translation keys were misspelled
   (`oscillaton`, `target_temp`) and never matched `strings.json`, so those
