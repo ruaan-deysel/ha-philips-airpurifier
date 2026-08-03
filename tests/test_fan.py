@@ -462,3 +462,43 @@ async def test_fan_oscillate_noop_without_oscillation() -> None:
     entity, coordinator = _make_fan_entity("AC3858/51", {"pwr": "1", "mode": "AG", "om": "a"})
     await entity.async_oscillate(True)
     coordinator.async_set_control_value.assert_not_called()
+
+
+async def test_fan_amf870_supports_oscillate() -> None:
+    """Test the AMF870 fan exposes the oscillate feature."""
+    entity, _ = _make_fan_entity("AMF870", {"D03102": 1, "D0310C": 2, "D0320F": 0})
+    assert entity.supported_features & FanEntityFeature.OSCILLATE
+
+
+async def test_fan_oscillate_restores_last_angle() -> None:
+    """Test oscillating back on restores the angle the device last reported."""
+    entity, coordinator = _make_fan_entity(
+        "AMF870",
+        {"D03102": 1, "D0310C": 2, "D0320F": 350},
+    )
+    entity._handle_coordinator_update = lambda: None
+
+    # Reading the state records the rotation angle reported by the device.
+    assert entity.oscillating is True
+
+    await entity.async_oscillate(False)
+    coordinator.async_set_control_value.assert_awaited_with("D0320F", 0)
+    assert entity.oscillating is False
+
+    coordinator.async_set_control_value.reset_mock()
+    await entity.async_oscillate(True)
+    coordinator.async_set_control_value.assert_awaited_with("D0320F", 350)
+
+
+async def test_fan_oscillate_falls_back_to_default_angle() -> None:
+    """Test oscillating on uses the configured value when no angle is known."""
+    entity, coordinator = _make_fan_entity(
+        "AMF870",
+        {"D03102": 1, "D0310C": 2, "D0320F": 0},
+    )
+    entity._handle_coordinator_update = lambda: None
+
+    assert entity.oscillating is False
+
+    await entity.async_oscillate(True)
+    coordinator.async_set_control_value.assert_awaited_with("D0320F", 90)

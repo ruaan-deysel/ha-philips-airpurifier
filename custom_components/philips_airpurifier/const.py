@@ -385,6 +385,14 @@ class PhilipsApi:
         SWITCH_ON: 80,
         SWITCH_OFF: 0,
     }
+    # The AMF family (AMF765, AMF870) stores the rotation angle itself in
+    # D0320F: 0 is off, 30..350 is the oscillation angle in degrees. The "on"
+    # value below is only the fallback used when no angle has been observed
+    # yet -- the fan entity restores the last reported angle when available.
+    OSCILLATION_MAP5 = {
+        SWITCH_ON: 90,
+        SWITCH_OFF: 0,
+    }
 
     # the AC1715 seems to follow a new scheme, this should later be refactored
     NEW_NAME = "D01-03"

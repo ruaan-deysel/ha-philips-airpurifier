@@ -138,7 +138,7 @@ If your device changes IP addresses:
 | **Air Purifiers** | 50+ models     | AC0650, AC0850, AC0950, AC1214, AC1715, AC2729, AC2889, AC2936, AC3033, AC3055, AC3210, AC3259, AC3420, AC3737, AC3829, AC3854, AC3858, AC4220, AC4550, AC5659 |
 | **2-in-1 Combos** | 7 models       | AC0850C series, AMF765, AMF870                                                                                                                                 |
 | **Humidifiers**   | 5 models       | CX3120, CX3550, CX5120, HU1509, HU1510, HU5710                                                                                                                 |
-| **Fans**          | 1 model        | CX7550                                                                                                                                                          |
+| **Fans**          | 1 model        | CX7550                                                                                                                                                         |
 | **Total**         | **63+ models** | **29 series**                                                                                                                                                  |
 
 ### Air Purifiers
@@ -204,6 +204,13 @@ If your device changes IP addresses:
 - AMF series are dedicated 2-in-1 air purifier and humidifier devices
 - CX and HU series are dedicated humidifiers
 
+**AMF765 / AMF870 Rotation (Oscillation) Notes:**
+
+- The AMF models keep the rotation angle and the on/off state in a single device value, which this integration surfaces in two ways:
+  - the **Oscillation** number entity sets the angle directly — `0°` stops the rotation, `30°` to `350°` (in 5° steps) start it at that angle;
+  - the fan entity's **oscillation** toggle (`fan.oscillate`) starts and stops the rotation without having to pick an angle.
+- Turning the rotation off and on again restores the last angle the device reported. If no angle has been seen yet (for example right after a Home Assistant restart), switching it on uses 90°.
+
 **CX7550 Oscillating Fan Notes:**
 
 - **Initial setup requires the Philips Air app**: the CX7550 must first be joined to your Wi-Fi network with the official Philips Air mobile app. Once it is on the network, this integration controls it entirely locally over CoAP — no cloud or app is needed for day-to-day use.
@@ -218,7 +225,7 @@ This integration provides comprehensive control through various Home Assistant e
 
 | Entity Type    | Description                             | Features                              |
 | -------------- | --------------------------------------- | ------------------------------------- |
-| **Fan**        | Main device control                     | Power, speed control, preset modes    |
+| **Fan**        | Main device control                     | Power, speed, preset modes, rotation  |
 | **Humidifier** | Humidity control (2-in-1 models)        | Target humidity, humidification modes |
 | **Climate**    | Temperature control (applicable models) | Temperature settings, heating modes   |
 

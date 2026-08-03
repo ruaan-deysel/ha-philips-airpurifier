@@ -7,6 +7,25 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+### Fixed
+
+- Rotation (oscillation) control is available again on the **AMF870**
+  (Series 8000i 2-in-1). The model configuration listed only the target
+  temperature under its numbers, which replaced rather than extended the AMF
+  family defaults and silently dropped the rotation angle entity. The
+  **Oscillation** number (0° = off, 30°–350° in 5° steps) is restored next to
+  the target temperature, and the fan entity now supports the standard
+  `fan.oscillate` service and the oscillation toggle in the UI. The AMF765
+  gains the same oscillation toggle — it kept the angle entity but never
+  exposed the on/off control.
+- Switching oscillation back on now restores the rotation angle the device last
+  reported instead of overwriting it with a fixed value. This matters on the
+  AMF family, where the angle and the on/off state share one device key.
+- The `oscillation` and `target_temperature` number entities are translated
+  again in German, Dutch and Bulgarian. Their translation keys were misspelled
+  (`oscillaton`, `target_temp`) and never matched `strings.json`, so those
+  entities fell back to their English names.
+
 ### Added
 
 - Support for the **CX7550/01** (Philips oscillating tower fan). It uses Gen3

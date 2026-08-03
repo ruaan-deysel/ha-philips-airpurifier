@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from custom_components.philips_airpurifier.const import FanModel
+from custom_components.philips_airpurifier.const import FanModel, PhilipsApi
 from custom_components.philips_airpurifier.device_models import DEVICE_MODELS
 from custom_components.philips_airpurifier.model import (
     ApiGeneration,
@@ -94,3 +94,18 @@ def test_cx7550_registered() -> None:
     assert config.api_generation is ApiGeneration.GEN3
     assert config.create_fan is True
     assert config.heaters == []
+
+
+def test_amf765_rotation_controls() -> None:
+    """Test AMF765 exposes both the rotation toggle and the rotation angle."""
+    config = DEVICE_MODELS[FanModel.AMF765]
+    assert PhilipsApi.NEW2_OSCILLATION in config.numbers
+    assert config.oscillation == {PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP5}
+
+
+def test_amf870_rotation_controls() -> None:
+    """Test AMF870 keeps the AMFxxx rotation angle alongside its target temperature."""
+    config = DEVICE_MODELS[FanModel.AMF870]
+    assert PhilipsApi.NEW2_OSCILLATION in config.numbers
+    assert PhilipsApi.NEW2_TARGET_TEMP in config.numbers
+    assert config.oscillation == {PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP5}
