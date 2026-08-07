@@ -282,6 +282,51 @@ async def test_number_set_value_positive_below_min_threshold(
     mock_number_coap_client.set_control_values.assert_called_with(data={PhilipsApi.NEW2_OSCILLATION: 30})
 
 
+async def test_amf870_creates_oscillation_and_target_temp_numbers(
+    hass: HomeAssistant,
+) -> None:
+    """Test the AMF870 exposes the rotation angle next to the target temperature."""
+    status = MOCK_STATUS_NUMBER | {"D01S05": "AMF870"}
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title=f"AMF870 {TEST_NAME}",
+        data={
+            CONF_HOST: TEST_HOST,
+            CONF_MODEL: "AMF870",
+            CONF_NAME: TEST_NAME,
+            CONF_DEVICE_ID: TEST_DEVICE_ID,
+            CONF_STATUS: status,
+        },
+        unique_id=TEST_DEVICE_ID,
+    )
+    entry.add_to_hass(hass)
+
+    with (
+        patch("custom_components.philips_airpurifier.CoAPClient") as mock_client_cls,
+        patch(
+            "custom_components.philips_airpurifier.coordinator.PhilipsAirPurifierCoordinator._start_observing",
+        ),
+    ):
+        client = AsyncMock()
+        client.get_status = AsyncMock(return_value=(status.copy(), 60))
+        mock_client_cls.create = AsyncMock(return_value=client)
+        mock_client_cls.return_value = client
+
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+
+    entity_registry = er.async_get(hass)
+    suffixes = {
+        e.unique_id.rpartition("-")[2]
+        for e in er.async_entries_for_config_entry(entity_registry, entry.entry_id)
+        if e.domain == NUMBER_DOMAIN
+    }
+    assert PhilipsApi.NEW2_OSCILLATION.lower() in suffixes
+    assert PhilipsApi.NEW2_TARGET_TEMP.lower() in suffixes
+
+
 async def test_number_set_native_value_none_coerces_to_min(
     hass: HomeAssistant,
     init_number_integration: MockConfigEntry,

@@ -274,11 +274,11 @@
       }
     },
     "number": {
-      "oscillaton": {
+      "oscillation": {
         "name": "Oszillation"
       },
-      "target_temp": {
-        "name": "Ziel Temperature"
+      "target_temperature": {
+        "name": "Zieltemperatur"
       }
     }
   }

@@ -64,6 +64,16 @@ class PhilipsFan(PhilipsAirPurifierEntity, FanEntity):  # pragma: no cover
         self._speeds_map = model_config.speeds
         self._speeds_list = list(self._speeds_map.keys())
         self._oscillation = model_config.oscillation
+        self._oscillation_key: str | None = None
+        self._oscillation_values: dict[str, Any] | None = None
+        # Last non-off value the device reported for the oscillation key, and
+        # the angle to restore when oscillation is switched back on. Only
+        # tracked for models whose oscillation key holds the rotation angle:
+        # the fixed-code models are not assumed to report the value that has
+        # to be written to switch oscillation on, so writing a reported value
+        # back could set something other than "on".
+        self._oscillation_is_angle: bool = model_config.oscillation_is_angle
+        self._last_oscillation_value: Any | None = None
 
         # Set supported features
         self._attr_supported_features = (
@@ -75,6 +85,8 @@ class PhilipsFan(PhilipsAirPurifierEntity, FanEntity):  # pragma: no cover
 
         if self._oscillation is not None:
             self._attr_supported_features |= FanEntityFeature.OSCILLATE
+            self._oscillation_key = next(iter(self._oscillation))
+            self._oscillation_values = self._oscillation[self._oscillation_key]
 
     @property
     def is_on(self) -> bool:
@@ -162,28 +174,48 @@ class PhilipsFan(PhilipsAirPurifierEntity, FanEntity):  # pragma: no cover
     @property
     def oscillating(self) -> bool | None:  # pragma: no cover
         """Return if the fan is oscillating."""
-        if self._oscillation is None:  # pragma: no cover
+        if self._oscillation_key is None or self._oscillation_values is None:  # pragma: no cover
             return None
 
-        key = next(iter(self._oscillation))
-        values = self._oscillation[key]
-        off = values[SWITCH_OFF]
-        status = self._device_status.get(key)
+        status = self._device_status.get(self._oscillation_key)
 
         if status is None:  # pragma: no cover
             return None
 
-        return status != off
+        oscillating = status != self._oscillation_values[SWITCH_OFF]
+
+        if oscillating and self._oscillation_is_angle:
+            # Home Assistant reads this property on every state write, so it is
+            # the one place that sees every angle the device reports. Remember
+            # it so async_oscillate can restore it rather than force the
+            # generic "on" value over a user-picked rotation angle.
+            self._last_oscillation_value = status
+
+        return oscillating
 
     async def async_oscillate(self, oscillating: bool) -> None:  # pragma: no cover
         """Set the oscillation of the fan."""
-        if self._oscillation is None:
+        if self._oscillation_key is None or self._oscillation_values is None:
             return
 
-        key = next(iter(self._oscillation))
-        values = self._oscillation[key]
-        value = values[SWITCH_ON] if oscillating else values[SWITCH_OFF]
+        off: Any = self._oscillation_values[SWITCH_OFF]
 
-        await self.coordinator.async_set_control_value(key, value)
-        self._device_status[key] = value
+        if self._oscillation_is_angle:
+            # Capture the angle the device is rotating at right now: the write
+            # below overwrites it, and Home Assistant may not have read the
+            # oscillating property since the device last reported a new angle.
+            current: Any | None = self._device_status.get(self._oscillation_key)
+            if current is not None and current != off:
+                self._last_oscillation_value = current
+
+        value: Any
+        if not oscillating:
+            value = off
+        elif self._last_oscillation_value is not None:
+            value = self._last_oscillation_value
+        else:
+            value = self._oscillation_values[SWITCH_ON]
+
+        await self.coordinator.async_set_control_value(self._oscillation_key, value)
+        self._device_status[self._oscillation_key] = value
         self._handle_coordinator_update()

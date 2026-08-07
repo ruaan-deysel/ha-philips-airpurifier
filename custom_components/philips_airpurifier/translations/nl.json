@@ -240,10 +240,10 @@
       }
     },
     "number": {
-      "oscillaton": {
+      "oscillation": {
         "name": "Oscillatie"
       },
-      "target_temp": {
+      "target_temperature": {
         "name": "Doeltemperatuur"
       }
     }

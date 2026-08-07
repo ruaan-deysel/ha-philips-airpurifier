@@ -73,6 +73,12 @@ class DeviceModelConfig:
     unavailable_filters: list[str] = field(default_factory=_default_string_list)
     unavailable_sensors: list[str] = field(default_factory=_default_string_list)
     oscillation: dict[str, dict[str, Any]] | None = None
+    # True when the oscillation key holds the rotation angle itself rather than
+    # a fixed on/off code (the AMF family: 0 = off, 30..350 = degrees). Only
+    # then may a reported value be written back to restore the previous angle;
+    # for the fixed-code models the device is not assumed to report the value
+    # that has to be written to switch oscillation on.
+    oscillation_is_angle: bool = False
     create_fan: bool = True
     # Special behavior flags
     requires_mode_cycling: bool = False  # AC1214 needs mode cycling

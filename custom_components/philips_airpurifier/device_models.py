@@ -1337,6 +1337,10 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
         # AMF765 overrides selects from AMFxxx
         selects=[PhilipsApi.NEW2_CIRCULATION],
         numbers=[PhilipsApi.NEW2_OSCILLATION],
+        oscillation={
+            PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP5,
+        },
+        oscillation_is_angle=True,
         unavailable_sensors=[PhilipsApi.NEW2_GAS],
     ),
     # =========================================================================
@@ -1358,8 +1362,17 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
             PhilipsApi.NEW2_GAS_PREFERRED_INDEX,
             PhilipsApi.NEW2_HEATING,
         ],
-        # AMF870 overrides numbers from AMFxxx
-        numbers=[PhilipsApi.NEW2_TARGET_TEMP],
+        # AMF870 adds the target temperature on top of the AMFxxx oscillation
+        # angle. Both numbers must be listed: dropping NEW2_OSCILLATION here
+        # removes the rotation angle control from the device entirely.
+        numbers=[
+            PhilipsApi.NEW2_OSCILLATION,
+            PhilipsApi.NEW2_TARGET_TEMP,
+        ],
+        oscillation={
+            PhilipsApi.NEW2_OSCILLATION: PhilipsApi.OSCILLATION_MAP5,
+        },
+        oscillation_is_angle=True,
     ),
     # =========================================================================
     # CX3120
