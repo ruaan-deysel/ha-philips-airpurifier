@@ -10,6 +10,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
 from homeassistant.config_entries import ConfigFlowResult, OptionsFlowWithReload
+from homeassistant.const import CONF_HOST, CONF_NAME
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
@@ -32,6 +33,7 @@ from .device_models import DEVICE_MODELS
 from .helpers import extract_model, extract_name
 
 _LOGGER = logging.getLogger(__name__)
+
 
 def host_valid(host: str) -> bool:
     """Return True if hostname or IP address is valid."""
@@ -422,6 +424,7 @@ class InvalidHost(exceptions.HomeAssistantError):
 class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate that the device could not be reached."""
 
+
 class PhilipsAirPurifierOptionsFlow(OptionsFlowWithReload):
     """Handle Philips AirPurifier options."""
 
@@ -432,9 +435,10 @@ class PhilipsAirPurifierOptionsFlow(OptionsFlowWithReload):
         model = self.config_entry.data.get(CONF_MODEL)
         model_config = DEVICE_MODELS.get(model)
 
-        default_status_nudge = bool(
-            model_config is not None and model_config.status_nudge
-        )
+        if model_config is None or not model_config.status_nudge:
+            return self.async_abort(reason="status_nudge_not_supported")
+
+        default_status_nudge = True
 
         if user_input is not None:
             return self.async_create_entry(data=user_input)

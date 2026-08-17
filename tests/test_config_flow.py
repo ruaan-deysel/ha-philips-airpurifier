@@ -11,6 +11,7 @@ from custom_components.philips_airpurifier.const import (
     CONF_DEVICE_ID,
     CONF_MAC,
     CONF_MODEL,
+    CONF_STATUS_NUDGE,
     CONF_STATUS,
     DOMAIN,
     PhilipsApi,
@@ -1060,3 +1061,75 @@ async def test_user_flow_model_family_supported_branch(hass: HomeAssistant) -> N
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+async def test_options_flow_status_nudge_supported(hass: HomeAssistant) -> None:
+    """Test status nudge option is available for supported models."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_HOST: TEST_HOST,
+            CONF_MODEL: "CX7550",
+            CONF_NAME: TEST_NAME,
+            CONF_DEVICE_ID: TEST_DEVICE_ID,
+            CONF_STATUS: MOCK_STATUS_GEN1,
+        },
+        unique_id=TEST_DEVICE_ID,
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+
+async def test_options_flow_status_nudge_can_be_disabled(
+    hass: HomeAssistant,
+) -> None:
+    """Test status nudge can be disabled per device."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_HOST: TEST_HOST,
+            CONF_MODEL: "CX7550",
+            CONF_NAME: TEST_NAME,
+            CONF_DEVICE_ID: TEST_DEVICE_ID,
+            CONF_STATUS: MOCK_STATUS_GEN1,
+        },
+        unique_id=TEST_DEVICE_ID,
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={CONF_STATUS_NUDGE: False},
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_STATUS_NUDGE] is False
+
+
+async def test_options_flow_status_nudge_not_supported(
+    hass: HomeAssistant,
+) -> None:
+    """Test status nudge option aborts for unsupported models."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_HOST: TEST_HOST,
+            CONF_MODEL: TEST_MODEL,
+            CONF_NAME: TEST_NAME,
+            CONF_DEVICE_ID: TEST_DEVICE_ID,
+            CONF_STATUS: MOCK_STATUS_GEN1,
+        },
+        unique_id=TEST_DEVICE_ID,
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "status_nudge_not_supported"

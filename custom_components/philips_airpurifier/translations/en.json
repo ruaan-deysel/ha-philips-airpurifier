@@ -31,6 +31,19 @@
       "cannot_connect": "Cannot connect to device"
     }
   },
+  "options": {
+    "abort": {
+      "status_nudge_not_supported": "Status nudge is not supported for this device"
+    },
+    "step": {
+      "init": {
+        "title": "Status nudge",
+        "data": {
+          "status_nudge": "Enable status nudge"
+        }
+      }
+    }
+  },
   "entity": {
     "fan": {
       "pap": {
