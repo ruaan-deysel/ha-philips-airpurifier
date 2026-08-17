@@ -9,8 +9,7 @@ from philips_airctrl import CoAPClient
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
-from homeassistant.config_entries import ConfigFlowResult
-from homeassistant.const import CONF_HOST, CONF_NAME
+from homeassistant.config_entries import ConfigFlowResult, OptionsFlowWithReload
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
@@ -20,12 +19,19 @@ from .client import (
     async_fetch_status,
     async_fetch_status_with_nudge,
 )
-from .const import CONF_DEVICE_ID, CONF_MAC, CONF_MODEL, CONF_STATUS, DOMAIN, PhilipsApi
+from .const import (
+    CONF_DEVICE_ID,
+    CONF_MAC,
+    CONF_MODEL,
+    CONF_STATUS,
+    CONF_STATUS_NUDGE,
+    DOMAIN,
+    PhilipsApi,
+)
 from .device_models import DEVICE_MODELS
 from .helpers import extract_model, extract_name
 
 _LOGGER = logging.getLogger(__name__)
-
 
 def host_valid(host: str) -> bool:
     """Return True if hostname or IP address is valid."""
@@ -42,6 +48,13 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle config flow for Philips AirPurifier."""
 
     VERSION = 1
+
+    @staticmethod
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Create the options flow."""
+        return PhilipsAirPurifierOptionsFlow()
 
     def __init__(self) -> None:
         """Initialize."""
@@ -408,3 +421,35 @@ class InvalidHost(exceptions.HomeAssistantError):
 
 class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate that the device could not be reached."""
+
+class PhilipsAirPurifierOptionsFlow(OptionsFlowWithReload):
+    """Handle Philips AirPurifier options."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage Philips AirPurifier options."""
+        model = self.config_entry.data.get(CONF_MODEL)
+        model_config = DEVICE_MODELS.get(model)
+
+        default_status_nudge = bool(
+            model_config is not None and model_config.status_nudge
+        )
+
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_STATUS_NUDGE,
+                        default=self.config_entry.options.get(
+                            CONF_STATUS_NUDGE,
+                            default_status_nudge,
+                        ),
+                    ): bool,
+                }
+            ),
+        )
