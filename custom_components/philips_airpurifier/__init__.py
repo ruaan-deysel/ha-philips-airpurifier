@@ -22,6 +22,7 @@ from .const import (
     CONF_MODEL,
     CONF_STATUS,
     CONF_STATUS_NUDGE,
+    CONF_UPDATE_WATCHDOG,
     DOMAIN,
 )
 from .coordinator import PhilipsAirPurifierCoordinator
@@ -94,6 +95,7 @@ async def async_setup_entry(
         host,
         device_information,
         status_nudge_enabled=entry.options.get(CONF_STATUS_NUDGE),
+        update_watchdog_enabled=entry.options.get(CONF_UPDATE_WATCHDOG, True),
     )
 
     # Perform initial data refresh, then start CoAP observation

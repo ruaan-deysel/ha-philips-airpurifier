@@ -205,6 +205,7 @@ def _make_coordinator(
     *,
     model: str = TEST_MODEL,
     client: AsyncMock | None = None,
+    update_watchdog_enabled: bool = True,
 ) -> PhilipsAirPurifierCoordinator:
     """Create a coordinator instance for unit-path testing."""
     device_info = DeviceInformation(
@@ -213,7 +214,13 @@ def _make_coordinator(
         device_id=TEST_DEVICE_ID,
         host=TEST_HOST,
     )
-    return PhilipsAirPurifierCoordinator(hass, client or AsyncMock(), TEST_HOST, device_info)
+    return PhilipsAirPurifierCoordinator(
+        hass,
+        client or AsyncMock(),
+        TEST_HOST,
+        device_info,
+        update_watchdog_enabled=update_watchdog_enabled,
+    )
 
 
 async def test_coordinator_model_config_family_fallback(hass: HomeAssistant) -> None:
@@ -262,6 +269,27 @@ async def test_start_observing_without_existing_tasks(hass: HomeAssistant) -> No
         coordinator._start_observing()
 
     assert create_task.call_count == 2
+
+
+async def test_start_observing_watchdog_disabled(
+    hass: HomeAssistant,
+) -> None:
+    """Test observing starts without watchdog when the option is disabled."""
+    coordinator = _make_coordinator(
+        hass,
+        update_watchdog_enabled=False,
+    )
+
+    with patch.object(coordinator, "_async_observe_status", AsyncMock()):
+        coordinator._start_observing()
+
+    assert coordinator._observe_task is not None
+    assert coordinator._watchdog_task is None
+
+    observe_task = coordinator._observe_task
+    observe_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await observe_task
 
 
 async def test_async_observe_status_cancelled_raises(hass: HomeAssistant) -> None:

@@ -32,14 +32,11 @@
     }
   },
   "options": {
-    "abort": {
-      "status_nudge_not_supported": "Status nudge is not supported for this device"
-    },
     "step": {
       "init": {
-        "title": "Status nudge",
+        "title": "Update watchdog",
         "data": {
-          "status_nudge": "Enable status nudge"
+          "update_watchdog": "Enable update watchdog"
         }
       }
     }

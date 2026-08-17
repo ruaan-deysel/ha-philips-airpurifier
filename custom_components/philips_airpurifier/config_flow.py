@@ -25,7 +25,7 @@ from .const import (
     CONF_MAC,
     CONF_MODEL,
     CONF_STATUS,
-    CONF_STATUS_NUDGE,
+    CONF_UPDATE_WATCHDOG,
     DOMAIN,
     PhilipsApi,
 )
@@ -432,13 +432,6 @@ class PhilipsAirPurifierOptionsFlow(OptionsFlowWithReload):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage Philips AirPurifier options."""
-        model = self.config_entry.data.get(CONF_MODEL)
-        model_config = DEVICE_MODELS.get(model)
-
-        if model_config is None or not model_config.status_nudge:
-            return self.async_abort(reason="status_nudge_not_supported")
-
-        default_status_nudge = True
 
         if user_input is not None:
             return self.async_create_entry(data=user_input)
@@ -448,10 +441,10 @@ class PhilipsAirPurifierOptionsFlow(OptionsFlowWithReload):
             data_schema=vol.Schema(
                 {
                     vol.Required(
-                        CONF_STATUS_NUDGE,
+                        CONF_UPDATE_WATCHDOG,
                         default=self.config_entry.options.get(
-                            CONF_STATUS_NUDGE,
-                            default_status_nudge,
+                            CONF_UPDATE_WATCHDOG,
+                            True,
                         ),
                     ): bool,
                 }

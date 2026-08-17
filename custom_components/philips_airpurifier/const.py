@@ -52,6 +52,7 @@ CONF_STATUS = "status"
 # re-discover the device and update its IP after a DHCP lease change. See issue #8.
 CONF_MAC = "mac"
 CONF_STATUS_NUDGE = "status_nudge"
+CONF_UPDATE_WATCHDOG = "update_watchdog"
 
 # Config-entry option flag set when the user acknowledges the filter
 # replacement repair, so it is not recreated on every coordinator update.

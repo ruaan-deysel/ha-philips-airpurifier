@@ -38,6 +38,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         host: str,
         device_info: DeviceInformation,
         status_nudge_enabled: bool | None = None,
+        update_watchdog_enabled: bool = True,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -58,6 +59,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else model_has_status_nudge and status_nudge_enabled
         )
 
+        self._update_watchdog_enabled = update_watchdog_enabled
         self._observe_task: asyncio.Task[None] | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
         self._reconnect_retry_task: asyncio.Task[None] | None = None
@@ -211,7 +213,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             f"philips_airpurifier_observe_{self.host}",
         )
 
-        if self._status_nudge_enabled:
+        if self._status_nudge_enabled or not self._update_watchdog_enabled:
             # Nudge-only devices push status only on a real state change, so an
             # idle device legitimately sends nothing. A periodic watchdog would
             # force needless reconnects (each re-toggling the nudge value) while
