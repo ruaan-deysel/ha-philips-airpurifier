@@ -37,7 +37,6 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         client: CoAPClient,
         host: str,
         device_info: DeviceInformation,
-        status_nudge_enabled: bool | None = None,
         update_watchdog_enabled: bool = True,
     ) -> None:
         """Initialize the coordinator."""
@@ -50,13 +49,8 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.host = host
         self.device_info = device_info
 
-        model_has_status_nudge = bool(
+        self._status_nudge_enabled = bool(
             getattr(self.model_config, "status_nudge", None)
-        )
-        self._status_nudge_enabled = (
-            model_has_status_nudge
-            if status_nudge_enabled is None
-            else model_has_status_nudge and status_nudge_enabled
         )
 
         self._update_watchdog_enabled = update_watchdog_enabled

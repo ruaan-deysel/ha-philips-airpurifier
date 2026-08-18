@@ -21,7 +21,6 @@ from .const import (
     CONF_MAC,
     CONF_MODEL,
     CONF_STATUS,
-    CONF_STATUS_NUDGE,
     CONF_UPDATE_WATCHDOG,
     DOMAIN,
 )
@@ -94,7 +93,6 @@ async def async_setup_entry(
         client,
         host,
         device_information,
-        status_nudge_enabled=entry.options.get(CONF_STATUS_NUDGE),
         update_watchdog_enabled=entry.options.get(CONF_UPDATE_WATCHDOG, True),
     )
 

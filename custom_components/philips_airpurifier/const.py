@@ -51,7 +51,6 @@ CONF_STATUS = "status"
 # with a network-MAC connection, which lets the `registered_devices` DHCP matcher
 # re-discover the device and update its IP after a DHCP lease change. See issue #8.
 CONF_MAC = "mac"
-CONF_STATUS_NUDGE = "status_nudge"
 CONF_UPDATE_WATCHDOG = "update_watchdog"
 
 # Config-entry option flag set when the user acknowledges the filter
