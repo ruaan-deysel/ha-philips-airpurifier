@@ -96,6 +96,9 @@ async def async_setup_entry(
         update_watchdog_enabled=entry.options.get(CONF_UPDATE_WATCHDOG, True),
     )
 
+    if not entry.options.get(CONF_UPDATE_WATCHDOG, True) and CONF_STATUS in entry.data:
+        coordinator.async_set_updated_data(entry.data[CONF_STATUS])
+
     # Perform initial data refresh, then start CoAP observation
     await coordinator.async_first_refresh_and_observe()
 

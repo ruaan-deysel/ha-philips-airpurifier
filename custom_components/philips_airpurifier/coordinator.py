@@ -347,6 +347,12 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._start_observing()
             return
 
+        if not self._update_watchdog_enabled and self.data is not None:
+            self._last_update = asyncio.get_event_loop().time()
+            self._mark_available()
+            self._start_observing()
+            return
+
         try:
             # One-shot initial read; continuous updates come from the observe
             # stream started below, so don't register a second observation here.
