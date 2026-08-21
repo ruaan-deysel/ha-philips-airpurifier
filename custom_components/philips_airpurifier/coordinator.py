@@ -27,6 +27,20 @@ DEFAULT_TIMEOUT = 60
 RECONNECT_INITIAL_DELAY = 5
 RECONNECT_MAX_DELAY = 60
 
+# Every CoAP call the coordinator makes is bounded. `get_status` awaits an
+# aiocoap response built with `transport_tuning=Unreliable` and has no internal
+# timeout, so a device that accepts a request and never answers leaves the
+# await pending indefinitely. The helpers in client.py already bound their
+# calls; these are the coordinator's own.
+COAP_CALL_TIMEOUT = 30
+SHUTDOWN_TIMEOUT = 10
+
+# A reconnect older than this is treated as wedged rather than in progress.
+# Without it, `_async_reconnect`'s duplicate guard turns one stuck await into a
+# permanent stall: the task is never `done()`, so every later attempt returns
+# immediately and neither the success nor the failure branch is ever reached.
+RECONNECT_TASK_MAX = 120
+
 
 class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator to manage data from Philips AirPurifier via CoAP push."""
@@ -55,6 +69,9 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._watchdog_task: asyncio.Task[None] | None = None
         self._last_update: float = 0.0
         self._reconnect_delay: int = RECONNECT_INITIAL_DELAY
+        # Event-loop time at which the current reconnect task started, so a
+        # wedged reconnect can be told from a slow one. None when idle.
+        self._reconnect_started: float | None = None
         self._device_available = True
         self._shutting_down: bool = False
 
@@ -111,7 +128,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_set_control_values(self, values: dict[str, Any]) -> None:
         """Set multiple control values on the device."""
-        await self.client.set_control_values(data=values)
+        await asyncio.wait_for(self.client.set_control_values(data=values), timeout=COAP_CALL_TIMEOUT)
 
     def _build_status_nudge(self) -> list[tuple[str, Any]]:
         """Build the nudge write sequence for a push-on-change device.
@@ -156,7 +173,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # first and recreate it afterwards — otherwise the observe stream started
         # after this would attach to the connection the nudge just evicted.
         with contextlib.suppress(Exception):
-            await self.client.shutdown()
+            await asyncio.wait_for(self.client.shutdown(), timeout=SHUTDOWN_TIMEOUT)
         status = await self._async_nudge_fetch()
         self.client = await async_create_client(self.host, create_client=CoAPClient.create)
         self._timeout = DEFAULT_TIMEOUT
@@ -182,7 +199,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             # One-shot read: ongoing updates come from the observe stream, so
             # avoid registering a redundant observation (philips-airctrl >= 1.1.0).
-            status, timeout = await self.client.get_status(observe=False)
+            status, timeout = await asyncio.wait_for(self.client.get_status(observe=False), timeout=COAP_CALL_TIMEOUT)
             self._timeout = timeout
             self._mark_available()
             return status
@@ -256,7 +273,19 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_reconnect(self) -> None:
         """Reconnect to the device."""
         if self._reconnect_task is not None and not self._reconnect_task.done():
-            return
+            age = (
+                asyncio.get_event_loop().time() - self._reconnect_started
+                if self._reconnect_started is not None
+                else None
+            )
+            if age is None or age < RECONNECT_TASK_MAX:
+                return
+            _LOGGER.warning(
+                "Previous reconnect to %s has been running for %d seconds, cancelling it and starting a new one",
+                self.host,
+                int(age),
+            )
+            self._reconnect_task.cancel()
 
         current_task = asyncio.current_task()
         if (
@@ -267,6 +296,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._reconnect_retry_task.cancel()
             self._reconnect_retry_task = None
 
+        self._reconnect_started = asyncio.get_event_loop().time()
         self._reconnect_task = self.hass.async_create_background_task(
             self._do_reconnect(),
             f"philips_airpurifier_reconnect_{self.host}",
@@ -294,7 +324,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Perform the actual reconnect."""
         try:
             with contextlib.suppress(Exception):
-                await self.client.shutdown()
+                await asyncio.wait_for(self.client.shutdown(), timeout=SHUTDOWN_TIMEOUT)
 
             if self.model_config.status_nudge:
                 # Re-fetch via nudge before re-establishing the observe stream.
@@ -305,7 +335,9 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 self.client = await async_create_client(self.host, create_client=CoAPClient.create)
                 # One-shot read before re-establishing the observe stream.
-                status, timeout = await self.client.get_status(observe=False)
+                status, timeout = await asyncio.wait_for(
+                    self.client.get_status(observe=False), timeout=COAP_CALL_TIMEOUT
+                )
                 self._timeout = timeout
                 self._last_update = asyncio.get_event_loop().time()
                 self._mark_available()
@@ -344,7 +376,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             # One-shot initial read; continuous updates come from the observe
             # stream started below, so don't register a second observation here.
-            status, timeout = await self.client.get_status(observe=False)
+            status, timeout = await asyncio.wait_for(self.client.get_status(observe=False), timeout=COAP_CALL_TIMEOUT)
             self._timeout = timeout
             self._mark_available()
             self.async_set_updated_data(status)
@@ -382,4 +414,4 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 await task
 
         with contextlib.suppress(Exception):
-            await self.client.shutdown()
+            await asyncio.wait_for(self.client.shutdown(), timeout=SHUTDOWN_TIMEOUT)
