@@ -13,7 +13,7 @@
               "auto_general": "mdi:autorenew",
               "auto_plus": "mdi:autorenew",
               "bacteria": "mdi:biohazard",
-              "allergen": "mdi:flower-pollen",
+              "allergen": "mdi:flower-pollen-outline",
               "gentle": "mdi:fan",
               "night": "mdi:weather-night",
               "sleep": "mdi:weather-night",
@@ -55,7 +55,7 @@
               "purification": "mdi:air-filter",
               "purification_humidification": "mdi:water-percent",
               "auto": "mdi:autorenew",
-              "allergen": "mdi:flower-pollen",
+              "allergen": mdi:flower-pollen-outline",
               "sleep": "mdi:weather-night",
               "night": "mdi:weather-night",
               "turbo": "mdi:fan",
@@ -122,7 +122,7 @@
     },
     "sensor": {
       "indoor_allergen_index": {
-        "default": "mdi:eye"
+        "default": "mdi:flower-pollen-outline"
       },
       "pm25": {
         "default": "mdi:blur"
@@ -218,7 +218,7 @@
       "preferred_index": {
         "default": "mdi:gauge",
         "state": {
-          "indoor_allergen_index": "mdi:eye",
+          "indoor_allergen_index": "mdi:flower-pollen-outline",
           "pm25": "mdi:blur",
           "gas_level": "mdi:molecule"
         }
@@ -230,7 +230,7 @@
           "auto_general": "mdi:autorenew",
           "auto_plus": "mdi:autorenew",
           "bacteria": "mdi:biohazard",
-          "allergen": "mdi:flower-pollen",
+          "allergen": "mdi:flower-pollen-outline",
           "gentle": "mdi:fan",
           "night": "mdi:weather-night",
           "sleep": "mdi:weather-night",
