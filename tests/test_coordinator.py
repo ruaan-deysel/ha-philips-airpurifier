@@ -10,6 +10,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.philips_airpurifier.coordinator import (
+    RECONNECT_INITIAL_DELAY,
     PhilipsAirPurifierCoordinator,
 )
 from custom_components.philips_airpurifier.model import DeviceInformation
@@ -777,3 +778,130 @@ async def test_do_reconnect_nudge(hass: HomeAssistant) -> None:
         await coordinator._do_reconnect()
 
     assert coordinator.data == _CX_STATUS
+
+
+async def test_do_reconnect_times_out_instead_of_hanging(hass: HomeAssistant) -> None:
+    """Test a device that accepts a status read and never answers still fails the reconnect.
+
+    `get_status` has no internal timeout, so without a bound here the await never
+    returns: `_do_reconnect` reaches neither its success nor its failure branch,
+    and the task stays not-done for ever. `_async_reconnect`'s duplicate guard
+    then makes every later attempt a no-op, so the watchdog keeps firing into a
+    function that returns immediately and nothing is ever logged.
+    """
+    coordinator = _make_coordinator(hass, client=AsyncMock())
+
+    async def _never(*_args, **_kwargs):
+        await asyncio.sleep(3600)
+
+    silent_client = MagicMock()
+    silent_client.get_status = _never
+    silent_client.shutdown = AsyncMock()
+
+    with (
+        patch(
+            "custom_components.philips_airpurifier.coordinator.async_create_client",
+            new=AsyncMock(return_value=silent_client),
+        ),
+        patch("custom_components.philips_airpurifier.coordinator.COAP_CALL_TIMEOUT", 0.05),
+        patch.object(coordinator, "_schedule_reconnect_retry") as retry,
+        patch.object(coordinator, "_mark_unavailable") as mark_unavailable,
+        patch.object(coordinator, "_start_observing") as start_observing,
+    ):
+        await asyncio.wait_for(coordinator._do_reconnect(), timeout=5)
+
+    retry.assert_called_once_with(RECONNECT_INITIAL_DELAY)
+    mark_unavailable.assert_called_once_with("reconnect failed")
+    start_observing.assert_not_called()
+    assert coordinator._reconnect_delay > RECONNECT_INITIAL_DELAY
+
+
+async def test_do_reconnect_survives_a_hanging_shutdown(hass: HomeAssistant) -> None:
+    """Test a client whose shutdown() never returns does not block the reconnect.
+
+    That call runs before anything else in `_do_reconnect`, so an unbounded one
+    stalls the reconnect before it has even tried to reach the device.
+    """
+
+    async def _never_shutdown():
+        await asyncio.sleep(3600)
+
+    stuck_client = MagicMock()
+    stuck_client.shutdown = _never_shutdown
+    coordinator = _make_coordinator(hass, client=stuck_client)
+
+    fresh_client = AsyncMock()
+    fresh_client.get_status = AsyncMock(return_value=(MOCK_STATUS_GEN1, 60))
+
+    with (
+        patch(
+            "custom_components.philips_airpurifier.coordinator.async_create_client",
+            new=AsyncMock(return_value=fresh_client),
+        ),
+        patch("custom_components.philips_airpurifier.coordinator.SHUTDOWN_TIMEOUT", 0.05),
+        patch.object(coordinator, "_schedule_reconnect_retry") as retry,
+        patch.object(coordinator, "_start_observing") as start_observing,
+    ):
+        await asyncio.wait_for(coordinator._do_reconnect(), timeout=5)
+
+    start_observing.assert_called_once()
+    retry.assert_not_called()
+
+
+async def test_async_reconnect_cancels_a_wedged_reconnect(hass: HomeAssistant) -> None:
+    """Test a reconnect older than the ceiling is cancelled rather than deferred to."""
+    coordinator = _make_coordinator(hass)
+
+    async def _wedged():
+        await asyncio.sleep(3600)
+
+    wedged_task = asyncio.create_task(_wedged())
+    coordinator._reconnect_task = wedged_task
+    coordinator._reconnect_started = asyncio.get_event_loop().time() - 10_000
+
+    def _close_and_mock(coro, *_args, **_kwargs):
+        # Close the coroutine we are not running, or pytest reports it as never
+        # awaited. Same approach as test_async_observe_status_error_triggers_reconnect.
+        coro.close()
+        return MagicMock()
+
+    try:
+        with (
+            patch("custom_components.philips_airpurifier.coordinator.RECONNECT_TASK_MAX", 1),
+            patch.object(hass, "async_create_background_task", side_effect=_close_and_mock) as create_task,
+        ):
+            await coordinator._async_reconnect()
+
+        create_task.assert_called_once()
+        assert wedged_task.cancelled() or wedged_task.cancelling()
+    finally:
+        wedged_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await wedged_task
+
+
+async def test_async_reconnect_leaves_a_young_reconnect_alone(hass: HomeAssistant) -> None:
+    """Test the duplicate guard still holds for a reconnect that has just started.
+
+    The ceiling must not turn into "always replace": a reconnect in progress is
+    the case the guard exists for.
+    """
+    coordinator = _make_coordinator(hass)
+
+    async def _running():
+        await asyncio.sleep(3600)
+
+    young_task = asyncio.create_task(_running())
+    coordinator._reconnect_task = young_task
+    coordinator._reconnect_started = asyncio.get_event_loop().time()
+
+    try:
+        with patch.object(hass, "async_create_background_task") as create_task:
+            await coordinator._async_reconnect()
+
+        create_task.assert_not_called()
+        assert not young_task.cancelled()
+    finally:
+        young_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await young_task
