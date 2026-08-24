@@ -21,6 +21,7 @@ from .const import (
     CONF_MAC,
     CONF_MODEL,
     CONF_STATUS,
+    CONF_UPDATE_WATCHDOG,
     DOMAIN,
 )
 from .coordinator import PhilipsAirPurifierCoordinator
@@ -87,7 +88,16 @@ async def async_setup_entry(
         device_id=device_id,
     )
 
-    coordinator = PhilipsAirPurifierCoordinator(hass, client, host, device_information)
+    coordinator = PhilipsAirPurifierCoordinator(
+        hass,
+        client,
+        host,
+        device_information,
+        update_watchdog_enabled=entry.options.get(CONF_UPDATE_WATCHDOG, True),
+    )
+
+    if not entry.options.get(CONF_UPDATE_WATCHDOG, True) and CONF_STATUS in entry.data:
+        coordinator.async_set_updated_data(entry.data[CONF_STATUS])
 
     # Perform initial data refresh, then start CoAP observation
     await coordinator.async_first_refresh_and_observe()

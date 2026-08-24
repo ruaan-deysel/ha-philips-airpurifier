@@ -31,6 +31,16 @@
       "cannot_connect": "Cannot connect to device"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update watchdog",
+        "data": {
+          "update_watchdog": "Enable update watchdog"
+        }
+      }
+    }
+  },
   "entity": {
     "fan": {
       "pap": {

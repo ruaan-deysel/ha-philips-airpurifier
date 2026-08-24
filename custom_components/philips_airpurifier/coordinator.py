@@ -37,6 +37,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         client: CoAPClient,
         host: str,
         device_info: DeviceInformation,
+        update_watchdog_enabled: bool = True,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -48,6 +49,11 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.host = host
         self.device_info = device_info
 
+        self._status_nudge_enabled = bool(
+            getattr(self.model_config, "status_nudge", None)
+        )
+
+        self._update_watchdog_enabled = update_watchdog_enabled
         self._observe_task: asyncio.Task[None] | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
         self._reconnect_retry_task: asyncio.Task[None] | None = None
@@ -166,7 +172,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from the device (used for initial refresh and fallback)."""
-        if self.model_config.status_nudge:
+        if self._status_nudge_enabled:
             # This firmware never answers a status read; ongoing state comes
             # from the observe stream. Return the last pushed status if we have
             # it, otherwise force one push via a nudge.
@@ -201,7 +207,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             f"philips_airpurifier_observe_{self.host}",
         )
 
-        if self.model_config.status_nudge:
+        if self._status_nudge_enabled or not self._update_watchdog_enabled:
             # Nudge-only devices push status only on a real state change, so an
             # idle device legitimately sends nothing. A periodic watchdog would
             # force needless reconnects (each re-toggling the nudge value) while
@@ -296,7 +302,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             with contextlib.suppress(Exception):
                 await self.client.shutdown()
 
-            if self.model_config.status_nudge:
+            if self._status_nudge_enabled:
                 # Re-fetch via nudge before re-establishing the observe stream.
                 # _async_refresh_via_nudge owns the coordinator client here: a
                 # client created now would be evicted by the nudge helper's
@@ -328,7 +334,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_first_refresh_and_observe(self) -> None:
         """Perform first refresh and start observing."""
-        if self.model_config.status_nudge:
+        if self._status_nudge_enabled:
             try:
                 # This firmware never answers a status read; force the first
                 # push with a nudge, then observe for subsequent changes.
@@ -338,6 +344,12 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._mark_unavailable("initial nudge refresh failed")
                 msg = f"Failed to connect to device at {self.host}"
                 raise ConfigEntryNotReady(msg) from err
+            self._start_observing()
+            return
+
+        if not self._update_watchdog_enabled and self.data is not None:
+            self._last_update = asyncio.get_event_loop().time()
+            self._mark_available()
             self._start_observing()
             return
 

@@ -9,7 +9,7 @@ from philips_airctrl import CoAPClient
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
-from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.config_entries import ConfigFlowResult, OptionsFlowWithReload
 from homeassistant.const import CONF_HOST, CONF_NAME
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import format_mac
@@ -20,7 +20,15 @@ from .client import (
     async_fetch_status,
     async_fetch_status_with_nudge,
 )
-from .const import CONF_DEVICE_ID, CONF_MAC, CONF_MODEL, CONF_STATUS, DOMAIN, PhilipsApi
+from .const import (
+    CONF_DEVICE_ID,
+    CONF_MAC,
+    CONF_MODEL,
+    CONF_STATUS,
+    CONF_UPDATE_WATCHDOG,
+    DOMAIN,
+    PhilipsApi,
+)
 from .device_models import DEVICE_MODELS
 from .helpers import extract_model, extract_name
 
@@ -42,6 +50,13 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle config flow for Philips AirPurifier."""
 
     VERSION = 1
+
+    @staticmethod
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Create the options flow."""
+        return PhilipsAirPurifierOptionsFlow()
 
     def __init__(self) -> None:
         """Initialize."""
@@ -408,3 +423,30 @@ class InvalidHost(exceptions.HomeAssistantError):
 
 class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate that the device could not be reached."""
+
+
+class PhilipsAirPurifierOptionsFlow(OptionsFlowWithReload):
+    """Handle Philips AirPurifier options."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage Philips AirPurifier options."""
+
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_UPDATE_WATCHDOG,
+                        default=self.config_entry.options.get(
+                            CONF_UPDATE_WATCHDOG,
+                            True,
+                        ),
+                    ): bool,
+                }
+            ),
+        )
