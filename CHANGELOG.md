@@ -7,8 +7,15 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+## [2026.8.0] - 2026-08-30
+
 ### Fixed
 
+- Reconnect recovery can no longer wedge indefinitely when a CoAP status read
+  stalls during reconnect. Coordinator CoAP calls are now time-bounded and
+  stale reconnect tasks are treated as wedged, so retries and availability
+  recovery continue as expected
+  ([#101](https://github.com/ruaan-deysel/ha-philips-airpurifier/pull/101)).
 - Rotation (oscillation) control is available again on the **AMF870**
   (Series 8000i 2-in-1). The model configuration listed only the target
   temperature under its numbers, which replaced rather than extended the AMF
@@ -32,6 +39,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ### Added
 
+- Added a per-device option to enable or disable the update watchdog. This is
+  useful for models that rely on status nudges and can remain idle for long
+  periods without emitting push updates
+  ([#100](https://github.com/ruaan-deysel/ha-philips-airpurifier/pull/100)).
 - Support for the **CX7550/01** (Philips oscillating tower fan). It uses Gen3
   CoAP and is fan-only (no heater). Exposes all 12 manual fan speeds, the Auto,
   Sleep and Natural preset modes, on/off oscillation, the display backlight
