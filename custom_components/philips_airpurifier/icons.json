@@ -55,7 +55,7 @@
               "purification": "mdi:air-filter",
               "purification_humidification": "mdi:water-percent",
               "auto": "mdi:autorenew",
-              "allergen": mdi:flower-pollen-outline",
+              "allergen": "mdi:flower-pollen-outline",
               "sleep": "mdi:weather-night",
               "night": "mdi:weather-night",
               "turbo": "mdi:fan",
