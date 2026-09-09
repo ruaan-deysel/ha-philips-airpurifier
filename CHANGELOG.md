@@ -7,6 +7,12 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+## [2026.9.0] - 2026-09-04
+
+### Fixed
+
+- Fix JSON Syntax on icons
+
 ## [2026.8.0] - 2026-08-30
 
 ### Fixed
