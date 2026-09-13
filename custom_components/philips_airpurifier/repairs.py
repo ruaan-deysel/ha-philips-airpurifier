@@ -22,6 +22,19 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def _entity_registry_identity(entity: Any) -> tuple[str, str, str] | None:
+    """Return the identity Home Assistant uses for an entity registry entry."""
+    if not entity.unique_id:
+        return None
+
+    # Home Assistant scopes unique IDs by entity domain and integration platform.
+    # The fallbacks keep compatibility with the lightweight test doubles used in
+    # this integration's test suite while real RegistryEntry objects provide both.
+    domain = getattr(entity, "domain", entity.entity_id.partition(".")[0])
+    platform = getattr(entity, "platform", DOMAIN)
+    return domain, platform, entity.unique_id
+
+
 async def async_create_fix_flow(
     hass: HomeAssistant,
     issue_id: str,
@@ -153,12 +166,14 @@ class EntityRegistryCleanupFlow(RepairsFlow):
                             removed_entity_ids.add(entity.entity_id)
                             continue
 
-                    # Check for duplicate entities (same unique_id)
-                    if entity.unique_id:
+                    # Check for duplicate entities using Home Assistant's registry
+                    # identity: entity domain + integration platform + unique ID.
+                    identity = _entity_registry_identity(entity)
+                    if identity is not None:
                         duplicates = [
                             e
                             for e in entities
-                            if e.unique_id == entity.unique_id
+                            if _entity_registry_identity(e) == identity
                             and e.entity_id != entity.entity_id
                             and e.entity_id not in removed_entity_ids
                         ]
@@ -169,6 +184,7 @@ class EntityRegistryCleanupFlow(RepairsFlow):
                                 cleaned_entities.append(duplicate.entity_id)
                                 removed_entity_ids.add(duplicate.entity_id)
 
+            async_delete_issue(self.hass, "entity_registry_cleanup")
             return self.async_create_entry(
                 title="Entity Cleanup Complete",
                 data={
@@ -320,16 +336,15 @@ class DuplicateEntitiesFlow(RepairsFlow):
             for entry in self.hass.config_entries.async_entries(DOMAIN):
                 entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
 
-                # Group entities by unique_id
-                unique_id_groups: dict[str, list[Any]] = {}
+                # Group entities by Home Assistant's entity registry identity.
+                identity_groups: dict[tuple[str, str, str], list[Any]] = {}
                 for entity in entities:
-                    if entity.unique_id:
-                        if entity.unique_id not in unique_id_groups:
-                            unique_id_groups[entity.unique_id] = []
-                        unique_id_groups[entity.unique_id].append(entity)
+                    identity = _entity_registry_identity(entity)
+                    if identity is not None:
+                        identity_groups.setdefault(identity, []).append(entity)
 
                 # Remove duplicates
-                for entity_group in unique_id_groups.values():
+                for entity_group in identity_groups.values():
                     if len(entity_group) > 1:
                         # Keep the first entity, remove the rest
                         for entity in entity_group[1:]:
@@ -459,14 +474,16 @@ async def async_check_integration_health(
                 if not device:
                     orphaned_entities.append(entity.entity_id)
 
-        # Check for duplicates
-        unique_ids: dict[str, str] = {}
+        # Check for duplicates using the same identity tuple as Home Assistant.
+        seen_identities: set[tuple[str, str, str]] = set()
         for entity in entities:
-            if entity.unique_id:
-                if entity.unique_id in unique_ids:
-                    duplicate_entities.append(entity.entity_id)
-                else:
-                    unique_ids[entity.unique_id] = entity.entity_id
+            identity = _entity_registry_identity(entity)
+            if identity is None:
+                continue
+            if identity in seen_identities:
+                duplicate_entities.append(entity.entity_id)
+            else:
+                seen_identities.add(identity)
 
     if orphaned_entities or duplicate_entities:
         async_create_issue(
