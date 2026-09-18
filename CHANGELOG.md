@@ -7,6 +7,16 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+### Fixed
+
+- The **HU1509/HU1510** and **HU4209/00** now use a status nudge (toggling the
+  display backlight) to fetch status, like the CX7550 and HU5710. Newer
+  firmware on some of these humidifiers never answers a plain status read and
+  only pushes updates on a real state change, which previously caused
+  detection to time out, setup to fail with `ConfigEntryNotReady`, or the
+  device to go permanently unavailable after the CoAP observe stream dropped
+  (reconnect kept retrying a read the firmware would never answer).
+
 ## [2026.9.0] - 2026-09-04
 
 ### Fixed

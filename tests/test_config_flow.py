@@ -175,6 +175,51 @@ async def test_user_flow_status_nudge_fallback(
     assert result["data"][CONF_MODEL] == "CX7550"
 
 
+async def test_user_flow_status_nudge_fallback_hu1509(
+    hass: HomeAssistant,
+    mock_coap_client_config_flow: AsyncMock,
+) -> None:
+    """Test the HU1509 recovers via nudge when newer firmware never answers a read.
+
+    Some HU1509/HU1510 units on newer firmware behave like the CX7550/HU5710:
+    push-only, never answering a plain status read.
+    """
+    hu1509_status = {
+        PhilipsApi.NEW2_MODEL_ID: "HU1509/10",
+        PhilipsApi.NEW2_NAME: "Bedroom",
+        PhilipsApi.DEVICE_ID: TEST_DEVICE_ID,
+        PhilipsApi.WIFI_VERSION: "AWS_Philips_AIR_Combo@86",
+        PhilipsApi.NEW2_POWER: 1,
+    }
+    with (
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_status",
+            AsyncMock(side_effect=TimeoutError),
+        ),
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_device_info",
+            AsyncMock(return_value={"modelid": "HU1509/10", "name": "Bedroom"}),
+        ),
+        patch(
+            "custom_components.philips_airpurifier.config_flow.async_fetch_status_with_nudge",
+            AsyncMock(return_value=hu1509_status),
+        ),
+        # Entry setup for a nudge device also fetches via nudge in the coordinator.
+        patch(
+            "custom_components.philips_airpurifier.coordinator.async_fetch_status_with_nudge",
+            AsyncMock(return_value=hu1509_status),
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={CONF_HOST: TEST_HOST},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_MODEL] == "HU1509"
+
+
 async def test_user_flow_nudge_fetch_fails(
     hass: HomeAssistant,
 ) -> None:

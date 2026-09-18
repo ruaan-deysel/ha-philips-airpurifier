@@ -766,6 +766,15 @@ def test_build_status_nudge_empty_without_config(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("model", ["HU1509", "HU1510", "HU4209/00"])
+def test_build_status_nudge_hu1509_family(hass: HomeAssistant, model: str) -> None:
+    """HU1509/HU1510/HU4209 share the same push-only display-backlight nudge."""
+    coordinator = _make_coordinator(hass, model=model)
+
+    assert coordinator._build_status_nudge() == [("D03105#2", 0), ("D03105#2", 115)]
+
+
+@pytest.mark.unit
 async def test_do_reconnect_nudge(hass: HomeAssistant) -> None:
     """Test reconnect for a nudge-only device re-fetches via nudge."""
     coordinator = _make_coordinator(hass, model="CX7550", client=AsyncMock())
