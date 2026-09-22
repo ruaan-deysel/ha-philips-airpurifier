@@ -680,7 +680,7 @@ _CONFIG_AC5659 = DeviceModelConfig(
 
 # Newer firmware on some HU1509/HU1510/HU4209 units never answers a status
 # read; it only pushes status to observers on a real state change (the same
-# push-only behavior already handled for CX7550 and HU5710). Toggle the
+# push-only behavior already handled for CX7550). Toggle the
 # display backlight (D03105#2) to force the push. NEW2_DISPLAY_BACKLIGHT4 uses
 # the same off/medium/on codes (0/115/123) as NEW2_DISPLAY_BACKLIGHT2/3, which
 # are already confirmed from device captures on the CX7550/CX3550 family. See
@@ -1673,9 +1673,12 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
         # the user's last-known backlight value (falling back to this resting
         # value, "low", on first contact) so the nudge does not force the
         # display back on every reconnect. See coordinator._build_status_nudge.
+        # Uses the same NEW2_DISPLAY_BACKLIGHT4 constant as `lights` above (not
+        # a different sibling constant): the coordinator strips the "#N" suffix
+        # before touching the device, so this matches the actual light entity.
         status_nudge=[
-            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 0),
-            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 115),
+            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT4, 0),
+            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT4, 115),
         ],
     ),
     # =========================================================================

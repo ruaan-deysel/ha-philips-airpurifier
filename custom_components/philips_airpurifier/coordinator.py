@@ -154,12 +154,20 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         turned off. Instead, end the sequence on the value we last observed for
         that key (the user's choice), while still passing through a different
         transient value first so the device sees a genuine change and pushes.
+
+        A model's declared key may carry a "#N" suffix (e.g. "D03105#2") that
+        selects a value scheme for entities sharing one physical register under
+        different names -- see PhilipsLight.kind stripping the same suffix in
+        light.py. The suffix is presentation-only: the wire key and the pushed
+        status are always keyed by the bare id, so it's stripped here too,
+        otherwise the last-known-value lookup below never matches and the
+        "resting" value always wins.
         """
         base = self.model_config.status_nudge or []
         if not base:
             return []
 
-        key = base[0][0]
+        key = base[0][0].partition("#")[0]
         transient = base[0][1]
         resting = base[-1][1]
 

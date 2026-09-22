@@ -181,7 +181,7 @@ async def test_user_flow_status_nudge_fallback_hu1509(
 ) -> None:
     """Test the HU1509 recovers via nudge when newer firmware never answers a read.
 
-    Some HU1509/HU1510 units on newer firmware behave like the CX7550/HU5710:
+    Some HU1509/HU1510 units on newer firmware behave like the CX7550:
     push-only, never answering a plain status read.
     """
     hu1509_status = {

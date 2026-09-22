@@ -820,10 +820,25 @@ def test_build_status_nudge_empty_without_config(hass: HomeAssistant) -> None:
 @pytest.mark.unit
 @pytest.mark.parametrize("model", ["HU1509", "HU1510", "HU4209/00"])
 def test_build_status_nudge_hu1509_family(hass: HomeAssistant, model: str) -> None:
-    """HU1509/HU1510/HU4209 share the same push-only display-backlight nudge."""
+    """HU1509/HU1510/HU4209 share the same push-only display-backlight nudge.
+
+    The model declares the suffixed NEW2_DISPLAY_BACKLIGHT4 key ("D03105#2")
+    to pick its value scheme, but the nudge must use the bare wire key
+    ("D03105") -- that's what the pushed status and every other write path
+    use -- otherwise the last-known-value restore below never matches.
+    """
     coordinator = _make_coordinator(hass, model=model)
 
-    assert coordinator._build_status_nudge() == [("D03105#2", 0), ("D03105#2", 115)]
+    assert coordinator._build_status_nudge() == [("D03105", 0), ("D03105", 115)]
+
+
+@pytest.mark.unit
+def test_build_status_nudge_hu1509_restores_last_known_value(hass: HomeAssistant) -> None:
+    """The suffix must be stripped before the last-known-value lookup, or it never matches."""
+    coordinator = _make_coordinator(hass, model="HU1509")
+    coordinator.async_set_updated_data({"D03105": 0})
+
+    assert coordinator._build_status_nudge() == [("D03105", 115), ("D03105", 0)]
 
 
 @pytest.mark.unit
