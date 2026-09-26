@@ -34,10 +34,12 @@ Use voluptuous with `homeassistant.helpers.config_validation` for parameter vali
 import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
 
-SERVICE_SCHEMA = vol.Schema({
-    vol.Required("device_id"): cv.string,
-    vol.Optional("force", default=False): cv.boolean,
-})
+SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("device_id"): cv.string,
+        vol.Optional("force", default=False): cv.boolean,
+    }
+)
 ```
 
 ## Exception Handling
@@ -80,6 +82,7 @@ Example with datetime conversion:
 ```python
 from homeassistant.core import SupportsResponse
 
+
 async def search_items(call: ServiceCall) -> ServiceResponse:
     items = await client.search(call.data["start"], call.data["end"])
     return {
@@ -92,8 +95,11 @@ async def search_items(call: ServiceCall) -> ServiceResponse:
         ],
     }
 
+
 hass.services.async_register(
-    DOMAIN, "search", search_items,
+    DOMAIN,
+    "search",
+    search_items,
     supports_response=SupportsResponse.ONLY,
 )
 ```
@@ -120,10 +126,13 @@ Alternative with custom handler function:
 ```python
 async def custom_handler(entity, service_call):
     """Custom handler logic."""
-    await entity.set_sleep_timer(service_call.data['sleep_time'])
+    await entity.set_sleep_timer(service_call.data["sleep_time"])
+
 
 service.async_register_platform_entity_service(
-    hass, DOMAIN, "set_timer",
+    hass,
+    DOMAIN,
+    "set_timer",
     entity_domain="media_player",
     schema={vol.Required("sleep_time"): cv.time_period},
     func=custom_handler,  # Function instead of method name

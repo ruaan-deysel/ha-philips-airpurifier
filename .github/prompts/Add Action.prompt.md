@@ -445,6 +445,7 @@ If service action returns data:
 ```python
 from homeassistant.core import SupportsResponse
 
+
 # In service action handler
 async def async_handle_service_action(call: ServiceCall) -> dict[str, Any]:
     """Handle service action and return data."""
@@ -455,6 +456,7 @@ async def async_handle_service_action(call: ServiceCall) -> dict[str, Any]:
         "success": True,
         "value": result,
     }
+
 
 # When registering
 hass.services.async_register(  # Legacy API: hass.services
@@ -547,16 +549,18 @@ For entity actions with dynamic fields based on capabilities:
 import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
 
-SERVICE_SCHEMA = vol.Schema({
-    vol.Required("string_param"): cv.string,
-    vol.Required("int_param"): cv.positive_int,
-    vol.Required("float_param"): vol.Range(min=0.0, max=100.0),
-    vol.Required("bool_param"): cv.boolean,
-    vol.Required("time_param"): cv.time,
-    vol.Required("entity_id"): cv.entity_id,
-    vol.Required("enum_param"): vol.In(["option1", "option2", "option3"]),
-    vol.Optional("optional_param", default="default"): cv.string,
-})
+SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("string_param"): cv.string,
+        vol.Required("int_param"): cv.positive_int,
+        vol.Required("float_param"): vol.Range(min=0.0, max=100.0),
+        vol.Required("bool_param"): cv.boolean,
+        vol.Required("time_param"): cv.time,
+        vol.Required("entity_id"): cv.entity_id,
+        vol.Required("enum_param"): vol.In(["option1", "option2", "option3"]),
+        vol.Optional("optional_param", default="default"): cv.string,
+    }
+)
 ```
 
 ### Custom Validator
@@ -568,9 +572,12 @@ def validate_custom(value: Any) -> Any:
         raise vol.Invalid("Parameter does not meet criteria")
     return value
 
-SERVICE_SCHEMA = vol.Schema({
-    vol.Required("custom"): validate_custom,
-})
+
+SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("custom"): validate_custom,
+    }
+)
 ```
 
 ## Error Handling
@@ -578,20 +585,17 @@ SERVICE_SCHEMA = vol.Schema({
 ```python
 from homeassistant.exceptions import HomeAssistantError
 
+
 async def async_handle_service_action(call: ServiceCall) -> None:
     """Handle service action with error handling."""
     try:
         result = await do_something(call.data)
 
     except ConnectionError as err:
-        raise HomeAssistantError(
-            f"Failed to connect to device: {err}"
-        ) from err
+        raise HomeAssistantError(f"Failed to connect to device: {err}") from err
 
     except ValueError as err:
-        raise HomeAssistantError(
-            f"Invalid parameter value: {err}"
-        ) from err
+        raise HomeAssistantError(f"Invalid parameter value: {err}") from err
 ```
 
 ## Validation Checklist

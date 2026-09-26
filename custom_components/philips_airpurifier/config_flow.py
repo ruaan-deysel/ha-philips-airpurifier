@@ -428,9 +428,7 @@ class CannotConnect(exceptions.HomeAssistantError):
 class PhilipsAirPurifierOptionsFlow(OptionsFlowWithReload):
     """Handle Philips AirPurifier options."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage Philips AirPurifier options."""
 
         if user_input is not None:

@@ -11,8 +11,8 @@ from custom_components.philips_airpurifier.const import (
     CONF_DEVICE_ID,
     CONF_MAC,
     CONF_MODEL,
-    CONF_UPDATE_WATCHDOG,
     CONF_STATUS,
+    CONF_UPDATE_WATCHDOG,
     DOMAIN,
     PhilipsApi,
 )

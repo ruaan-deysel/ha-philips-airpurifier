@@ -105,6 +105,7 @@ applyTo: "custom_components/**/alarm_control_panel/**/*.py, custom_components/**
 ```python
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from ..coordinator import IntegrationBlueprintDataUpdateCoordinator
 ```

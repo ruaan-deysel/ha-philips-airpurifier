@@ -63,9 +63,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.host = host
         self.device_info = device_info
 
-        self._status_nudge_enabled = bool(
-            getattr(self.model_config, "status_nudge", None)
-        )
+        self._status_nudge_enabled = bool(getattr(self.model_config, "status_nudge", None))
 
         self._update_watchdog_enabled = update_watchdog_enabled
         self._observe_task: asyncio.Task[None] | None = None
