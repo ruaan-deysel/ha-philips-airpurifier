@@ -12,6 +12,9 @@
   "code-block-style": {
     "style": "fenced"
   },
+  "MD024": {
+    "siblings_only": true
+  },
   "emphasis-style": {
     "style": "consistent"
   },

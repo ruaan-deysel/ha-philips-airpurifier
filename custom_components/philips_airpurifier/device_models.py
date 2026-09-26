@@ -8,6 +8,8 @@ class inheritance.
 
 from __future__ import annotations
 
+from typing import Any
+
 from .const import FanModel, PhilipsApi, PresetMode
 from .model import ApiGeneration, DeviceModelConfig
 
@@ -676,6 +678,19 @@ _CONFIG_AC5659 = DeviceModelConfig(
     selects=[PhilipsApi.PREFERRED_INDEX],
 )
 
+# Newer firmware on some HU1509/HU1510/HU4209 units never answers a status
+# read; it only pushes status to observers on a real state change (the same
+# push-only behavior already handled for CX7550). Toggle the
+# display backlight (D03105#2) to force the push. NEW2_DISPLAY_BACKLIGHT4 uses
+# the same off/medium/on codes (0/115/123) as NEW2_DISPLAY_BACKLIGHT2/3, which
+# are already confirmed from device captures on the CX7550/CX3550 family. See
+# coordinator._build_status_nudge for how the (transient, resting) pair is
+# used to avoid clobbering the user's display setting on every reconnect.
+_HU1509_STATUS_NUDGE: list[tuple[str, Any]] = [
+    (PhilipsApi.NEW2_DISPLAY_BACKLIGHT4, 0),
+    (PhilipsApi.NEW2_DISPLAY_BACKLIGHT4, 115),
+]
+
 # HU1509/HU1510 config (both map to PhilipsHU1510 class in model_to_class)
 _CONFIG_HU1509 = DeviceModelConfig(
     api_generation=ApiGeneration.GEN3,
@@ -694,6 +709,7 @@ _CONFIG_HU1509 = DeviceModelConfig(
     ],
     binary_sensors=[PhilipsApi.NEW2_ERROR_CODE],
     humidifiers=[PhilipsApi.NEW2_HUMIDITY_TARGET2],
+    status_nudge=_HU1509_STATUS_NUDGE,
 )
 
 # HU4209/00 config -- identical to HU1509 but without NEW2_AMBIENT_LIGHT_MODE
@@ -713,6 +729,7 @@ _CONFIG_HU4209 = DeviceModelConfig(
     ],
     binary_sensors=[PhilipsApi.NEW2_ERROR_CODE],
     humidifiers=[PhilipsApi.NEW2_HUMIDITY_TARGET2],
+    status_nudge=_HU1509_STATUS_NUDGE,
 )
 
 # =============================================================================
@@ -1656,9 +1673,12 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
         # the user's last-known backlight value (falling back to this resting
         # value, "low", on first contact) so the nudge does not force the
         # display back on every reconnect. See coordinator._build_status_nudge.
+        # Uses the same NEW2_DISPLAY_BACKLIGHT4 constant as `lights` above (not
+        # a different sibling constant): the coordinator strips the "#N" suffix
+        # before touching the device, so this matches the actual light entity.
         status_nudge=[
-            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 0),
-            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 115),
+            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT4, 0),
+            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT4, 115),
         ],
     ),
     # =========================================================================

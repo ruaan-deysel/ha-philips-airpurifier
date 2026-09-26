@@ -70,6 +70,7 @@ async def async_create_fix_flow(
 ```python
 from homeassistant.components.repairs import RepairsFlow
 
+
 class MyRepairFlow(RepairsFlow):
     async def async_step_init(self, user_input=None):
         if user_input is not None:

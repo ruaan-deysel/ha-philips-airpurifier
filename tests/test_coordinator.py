@@ -10,6 +10,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.philips_airpurifier.coordinator import (
+    NUDGE_WATCHDOG_TIMEOUT,
     RECONNECT_INITIAL_DELAY,
     PhilipsAirPurifierCoordinator,
 )
@@ -384,6 +385,36 @@ async def test_async_watchdog_no_reconnect_when_recent(hass: HomeAssistant) -> N
     reconnect_mock.assert_not_awaited()
 
 
+async def test_async_watchdog_uses_longer_interval_for_nudge_devices(hass: HomeAssistant) -> None:
+    """Test the watchdog waits NUDGE_WATCHDOG_TIMEOUT, not timeout*count, for nudge devices.
+
+    A nudge device (e.g. CX7550) can legitimately go quiet for a long time
+    between real state changes, so it gets a much more patient window than the
+    short one used for devices that answer plain reads -- while still catching
+    a stream that hangs without ever raising.
+    """
+    coordinator = _make_coordinator(hass, model="CX7550")
+    coordinator._timeout = 1
+    coordinator._last_update = 1
+
+    fake_loop = MagicMock()
+    fake_loop.time.return_value = 1 + NUDGE_WATCHDOG_TIMEOUT + 1
+
+    with (
+        patch(
+            "custom_components.philips_airpurifier.coordinator.asyncio.sleep",
+            side_effect=[None, asyncio.CancelledError],
+        ) as sleep_mock,
+        patch("custom_components.philips_airpurifier.coordinator.asyncio.get_event_loop", return_value=fake_loop),
+        patch.object(coordinator, "_async_reconnect", new=AsyncMock()) as reconnect_mock,
+    ):
+        with pytest.raises(asyncio.CancelledError):
+            await coordinator._async_watchdog()
+
+    sleep_mock.assert_called_with(NUDGE_WATCHDOG_TIMEOUT)
+    reconnect_mock.assert_awaited_once()
+
+
 async def test_async_reconnect_inflight_guard(hass: HomeAssistant) -> None:
     """Test _async_reconnect returns when reconnect task already running."""
     coordinator = _make_coordinator(hass)
@@ -714,9 +745,30 @@ async def test_update_data_nudge_failure_raises(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.unit
-async def test_start_observing_nudge_skips_watchdog(hass: HomeAssistant) -> None:
-    """Test nudge-only devices start observing without a watchdog timer."""
+async def test_start_observing_nudge_still_runs_watchdog(hass: HomeAssistant) -> None:
+    """Test nudge-only devices still get a (longer) watchdog timer.
+
+    A hung observe stream (socket alive, no data, no exception) never raises,
+    so `_async_observe_status` never reconnects on its own; only the watchdog
+    catches that. It's skipped only when the user has explicitly disabled it.
+    """
     coordinator = _make_coordinator(hass, model="CX7550")
+
+    with patch.object(coordinator, "_async_observe_status", AsyncMock()):
+        coordinator._start_observing()
+
+    assert coordinator._observe_task is not None
+    assert coordinator._watchdog_task is not None
+
+    for task in (coordinator._observe_task, coordinator._watchdog_task):
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+
+async def test_start_observing_watchdog_disabled_skips_nudge_watchdog(hass: HomeAssistant) -> None:
+    """Test the per-device watchdog toggle still disables it for nudge devices."""
+    coordinator = _make_coordinator(hass, model="CX7550", update_watchdog_enabled=False)
 
     with patch.object(coordinator, "_async_observe_status", AsyncMock()):
         coordinator._start_observing()
@@ -763,6 +815,30 @@ def test_build_status_nudge_empty_without_config(hass: HomeAssistant) -> None:
     coordinator = _make_coordinator(hass)
 
     assert coordinator._build_status_nudge() == []
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("model", ["HU1509", "HU1510", "HU4209/00"])
+def test_build_status_nudge_hu1509_family(hass: HomeAssistant, model: str) -> None:
+    """HU1509/HU1510/HU4209 share the same push-only display-backlight nudge.
+
+    The model declares the suffixed NEW2_DISPLAY_BACKLIGHT4 key ("D03105#2")
+    to pick its value scheme, but the nudge must use the bare wire key
+    ("D03105") -- that's what the pushed status and every other write path
+    use -- otherwise the last-known-value restore below never matches.
+    """
+    coordinator = _make_coordinator(hass, model=model)
+
+    assert coordinator._build_status_nudge() == [("D03105", 0), ("D03105", 115)]
+
+
+@pytest.mark.unit
+def test_build_status_nudge_hu1509_restores_last_known_value(hass: HomeAssistant) -> None:
+    """The suffix must be stripped before the last-known-value lookup, or it never matches."""
+    coordinator = _make_coordinator(hass, model="HU1509")
+    coordinator.async_set_updated_data({"D03105": 0})
+
+    assert coordinator._build_status_nudge() == [("D03105", 115), ("D03105", 0)]
 
 
 @pytest.mark.unit

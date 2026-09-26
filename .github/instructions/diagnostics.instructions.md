@@ -23,6 +23,7 @@ TO_REDACT = {
     "refresh_token",
 }
 
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant,
     entry: ConfigEntry,

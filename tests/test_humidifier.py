@@ -347,17 +347,28 @@ def mock_hu_config_entry() -> MockConfigEntry:
 @pytest.fixture
 def mock_hu_coap_client() -> Generator[AsyncMock]:
     """Return mocked CoAP client for HU1510."""
+    client = AsyncMock()
+    client.get_status = AsyncMock(return_value=(HU_STATUS.copy(), 60))
+    client.set_control_values = AsyncMock()
+    client.set_control_value = AsyncMock()
+    client.shutdown = AsyncMock()
     with (
         patch("custom_components.philips_airpurifier.CoAPClient") as mock_client_cls,
         patch(
             "custom_components.philips_airpurifier.coordinator.PhilipsAirPurifierCoordinator._start_observing",
         ),
+        # HU1510 uses a status nudge (push-only firmware): the initial refresh
+        # goes through async_fetch_status_with_nudge instead of a direct read,
+        # then recreates the coordinator's own client via async_create_client.
+        patch(
+            "custom_components.philips_airpurifier.coordinator.async_fetch_status_with_nudge",
+            AsyncMock(return_value=HU_STATUS.copy()),
+        ),
+        patch(
+            "custom_components.philips_airpurifier.coordinator.async_create_client",
+            AsyncMock(return_value=client),
+        ),
     ):
-        client = AsyncMock()
-        client.get_status = AsyncMock(return_value=(HU_STATUS.copy(), 60))
-        client.set_control_values = AsyncMock()
-        client.set_control_value = AsyncMock()
-        client.shutdown = AsyncMock()
         mock_client_cls.create = AsyncMock(return_value=client)
         yield client
 

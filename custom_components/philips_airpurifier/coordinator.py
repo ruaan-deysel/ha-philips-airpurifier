@@ -27,6 +27,16 @@ DEFAULT_TIMEOUT = 60
 RECONNECT_INITIAL_DELAY = 5
 RECONNECT_MAX_DELAY = 60
 
+# Nudge-only devices push status on a real state change, so an idle device
+# can legitimately send nothing for a long stretch -- the short
+# `_timeout * MISSED_PACKAGE_COUNT` window used for regular devices would
+# force needless reconnects on those. But a stream that hangs without
+# erroring (socket alive, no data, no exception) still needs to be caught:
+# `_async_observe_status` only reconnects when `observe_status()` raises, so
+# a silent hang blocks forever otherwise. This longer window catches that
+# stall while tolerating normal idle periods.
+NUDGE_WATCHDOG_TIMEOUT = 1800
+
 # Every CoAP call the coordinator makes is bounded. `get_status` awaits an
 # aiocoap response built with `transport_tuning=Unreliable` and has no internal
 # timeout, so a device that accepts a request and never answers leaves the
@@ -63,9 +73,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.host = host
         self.device_info = device_info
 
-        self._status_nudge_enabled = bool(
-            getattr(self.model_config, "status_nudge", None)
-        )
+        self._status_nudge_enabled = bool(getattr(self.model_config, "status_nudge", None))
 
         self._update_watchdog_enabled = update_watchdog_enabled
         self._observe_task: asyncio.Task[None] | None = None
@@ -146,12 +154,20 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         turned off. Instead, end the sequence on the value we last observed for
         that key (the user's choice), while still passing through a different
         transient value first so the device sees a genuine change and pushes.
+
+        A model's declared key may carry a "#N" suffix (e.g. "D03105#2") that
+        selects a value scheme for entities sharing one physical register under
+        different names -- see PhilipsLight.kind stripping the same suffix in
+        light.py. The suffix is presentation-only: the wire key and the pushed
+        status are always keyed by the bare id, so it's stripped here too,
+        otherwise the last-known-value lookup below never matches and the
+        "resting" value always wins.
         """
         base = self.model_config.status_nudge or []
         if not base:
             return []
 
-        key = base[0][0]
+        key = base[0][0].partition("#")[0]
         transient = base[0][1]
         resting = base[-1][1]
 
@@ -224,12 +240,7 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             f"philips_airpurifier_observe_{self.host}",
         )
 
-        if self._status_nudge_enabled or not self._update_watchdog_enabled:
-            # Nudge-only devices push status only on a real state change, so an
-            # idle device legitimately sends nothing. A periodic watchdog would
-            # force needless reconnects (each re-toggling the nudge value) while
-            # the device is simply idle. Rely on observe-stream errors to detect
-            # real disconnects instead of a missed-update timer.
+        if not self._update_watchdog_enabled:
             return
 
         if self._watchdog_task is not None:
@@ -264,10 +275,11 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_watchdog(self) -> None:
         """Watch for missed updates and trigger reconnect if needed."""
         while True:
-            await asyncio.sleep(self._timeout * MISSED_PACKAGE_COUNT)
+            interval = NUDGE_WATCHDOG_TIMEOUT if self._status_nudge_enabled else self._timeout * MISSED_PACKAGE_COUNT
+            await asyncio.sleep(interval)
             if self._last_update > 0:
                 elapsed = asyncio.get_event_loop().time() - self._last_update
-                if elapsed > self._timeout * MISSED_PACKAGE_COUNT:
+                if elapsed > interval:
                     self._mark_unavailable("watchdog timeout")
                     _LOGGER.warning(
                         "No updates from %s for %d seconds, reconnecting",
