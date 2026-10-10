@@ -1,8 +1,1 @@
 blank_issues_enabled: false
-contact_links:
-  - name: Ask a question in GitHub Discussions
-    url: https://github.com/ruaan-deysel/ha-philips-airpurifier/discussions
-    about: Use Discussions for setup questions, troubleshooting, and general ideas.
-  - name: Home Assistant Community Forum
-    url: https://community.home-assistant.io
-    about: Ask general Home Assistant questions in the community forum.
