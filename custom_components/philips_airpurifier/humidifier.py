@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.humidifier import HumidifierEntity
-from homeassistant.components.humidifier.const import (
+from homeassistant.components.humidifier import (
     HumidifierAction,
     HumidifierDeviceClass,
     HumidifierEntityFeature,

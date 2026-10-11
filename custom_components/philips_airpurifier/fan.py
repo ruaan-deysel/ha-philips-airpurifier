@@ -5,8 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.fan import FanEntity
-from homeassistant.components.fan.const import FanEntityFeature
+from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.util.percentage import (
     ordered_list_item_to_percentage,
     percentage_to_ordered_list_item,

@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.light import LightEntity
-from homeassistant.components.light.const import (
+from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_EFFECT,
     EFFECT_OFF,

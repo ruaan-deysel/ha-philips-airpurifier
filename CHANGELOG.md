@@ -7,6 +7,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed `ImportError` on setup (e.g. `cannot import name 'FanEntityFeature'`) by importing platform classes and constants from the Home Assistant component packages instead of their `.const` submodules.
+
 ## [2026.10.0] - 2026-10-08
 
 ### Added

@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.climate import ClimateEntity
-from homeassistant.components.climate.const import SWING_OFF, SWING_ON, ClimateEntityFeature, HVACMode
+from homeassistant.components.climate import SWING_OFF, SWING_ON, ClimateEntityFeature, HVACMode
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 
 from .const import HEATER_TYPES, SWITCH_OFF, SWITCH_ON, FanAttributes, PresetMode
