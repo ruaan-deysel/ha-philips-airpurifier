@@ -11,17 +11,17 @@
 [hacs_shield]: https://img.shields.io/badge/HACS-Default-green?style=flat-square
 [hacs]: https://hacs.xyz/docs/default_repositories
 [releases_shield]: https://img.shields.io/github/release/ruaan-deysel/ha-philips-airpurifier?style=flat-square&color=blue
-[latest_release]: https://github.com/ruaan-deysel/ha-philips-airpurifier/releases/latest
+[latest_release]: https://github.com/tinkerologie/ha-philips-airpurifier/releases/latest
 [ha_shield]: https://img.shields.io/badge/Home%20Assistant-2026.4%2B-blue?style=flat-square
 [ha_link]: https://www.home-assistant.io/
 [docs_shield]: https://deepwiki.com/badge.svg
-[docs_link]: https://deepwiki.com/ruaan-deysel/ha-philips-airpurifier
+[docs_link]: https://deepwiki.com/tinkerologie/ha-philips-airpurifier
 [license_shield]: https://img.shields.io/github/license/ruaan-deysel/ha-philips-airpurifier?style=flat-square&color=orange
-[license_link]: https://github.com/ruaan-deysel/ha-philips-airpurifier/blob/main/custom_components/philips_airpurifier/LICENSE.txt
+[license_link]: https://github.com/tinkerologie/ha-philips-airpurifier/blob/main/custom_components/philips_airpurifier/LICENSE.txt
 [community_forum_shield]: https://img.shields.io/badge/Community-Forum-blue?style=flat-square
 [community_forum]: https://community.home-assistant.io/t/philips-air-purifier/53030
 [issues_shield]: https://img.shields.io/github/issues/ruaan-deysel/ha-philips-airpurifier?style=flat-square&color=red
-[issues_link]: https://github.com/ruaan-deysel/ha-philips-airpurifier/issues
+[issues_link]: https://github.com/tinkerologie/ha-philips-airpurifier/issues
 
 A comprehensive **Local Push** integration for Philips air purifiers and humidifiers in Home Assistant. This integration provides complete control over your Philips air quality devices using the encrypted CoAP protocol for local communication.
 
@@ -72,7 +72,7 @@ This integration includes automatic reconnection attempts, but they may not alwa
 
 1. **Add Repository**: Click the button below to add this repository to HACS:
 
-   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ruaan-deysel&repository=ha-philips-airpurifier&category=integration)
+   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tinkerologie&repository=ha-philips-airpurifier&category=integration)
 
 2. **Install**: Search for "Philips AirPurifier" in HACS and install it
 3. **Restart**: Restart Home Assistant
@@ -80,7 +80,7 @@ This integration includes automatic reconnection attempts, but they may not alwa
 
 ### Manual Installation
 
-1. **Download**: Download the latest release from the [releases page](https://github.com/ruaan-deysel/ha-philips-airpurifier/releases)
+1. **Download**: Download the latest release from the [releases page](https://github.com/tinkerologie/ha-philips-airpurifier/releases)
 2. **Extract**: Extract the `custom_components/philips_airpurifier` folder to your Home Assistant `custom_components` directory
 3. **Restart**: Restart Home Assistant
 4. **Configure**: Follow the [Configuration](#️-configuration) steps below
@@ -315,7 +315,7 @@ philips-airctrl --host $DEVICE_IP status --json
 
 1. Test different modes and speeds using the Philips app
 2. Collect JSON output for each configuration
-3. [Open an issue](https://github.com/ruaan-deysel/ha-philips-airpurifier/issues) with the collected data
+3. [Open an issue](https://github.com/tinkerologie/ha-philips-airpurifier/issues) with the collected data
 
 #### 4. Clean Up
 
@@ -333,7 +333,7 @@ Contributions are welcome! Here's how you can help:
 
 ### Reporting Issues
 
-- Use the [issue tracker](https://github.com/ruaan-deysel/ha-philips-airpurifier/issues)
+- Use the [issue tracker](https://github.com/tinkerologie/ha-philips-airpurifier/issues)
 - Provide detailed information about your device model and firmware
 - Include relevant logs when reporting bugs
 
@@ -355,7 +355,7 @@ Contributions are welcome! Here's how you can help:
 
 ```bash
 # Clone the repository
-git clone https://github.com/ruaan-deysel/ha-philips-airpurifier.git
+git clone https://github.com/tinkerologie/ha-philips-airpurifier.git
 cd ha-philips-airpurifier
 
 # Install development dependencies

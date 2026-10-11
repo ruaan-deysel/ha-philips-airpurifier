@@ -25,7 +25,7 @@ All purifier communication must go through the `philips-airctrl` client abstract
 When an upstream method is missing:
 
 1. Implement graceful handling in integration code if possible (feature unavailable, fallback, or clear error).
-2. Open or reference an upstream issue in `ruaan-deysel/philips-airctrl` for the missing API.
+2. Open or reference an upstream issue in `tinkerologie/philips-airctrl` for the missing API.
 3. Avoid introducing custom transport logic in this repository.
 
 ## Known API (v1.2.0+)
