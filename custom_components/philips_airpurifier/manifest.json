@@ -24,10 +24,10 @@
       "registered_devices": true
     }
   ],
-  "documentation": "https://github.com/ruaan-deysel/ha-philips-airpurifier",
+  "documentation": "https://github.com/tinkerologie/ha-philips-airpurifier",
   "integration_type": "device",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/ruaan-deysel/ha-philips-airpurifier/issues",
+  "issue_tracker": "https://github.com/tinkerologie/ha-philips-airpurifier/issues",
   "requirements": ["philips-airctrl==1.2.0"],
   "version": "2026.10.0"
 }
